@@ -1,0 +1,24 @@
+<div id=qemu_new>
+<form method=POST>
+	<input type=hidden name=act value="{$act}" />
+	{if="$act==edit"}
+	<input type=hidden name=name value="{$vm.name}" />
+	{/if}
+	<table>
+	<tr>
+		<td>Name</td>
+		<td>{if="$act==edit"}{$vm.name}{else}<input type=text name=name value="{$vm.name}" />{/if}</td>
+	</tr>
+	<tr>
+		<td colspan=2>Options</td>
+	</tr>
+	{loop="$vm.opt"}
+	<tr>
+		<td><input type=text class="option_key" name=optkey_{$counter} data-counter={$counter} value="{$value.name}" /></td>
+		<td><input type=text class="option_val" name=optval_{$counter} data-counter={$counter} value="{$value.value}" /></td>
+	</tr>
+	{/loop}
+	</table>
+	<input type=submit name=submit value={if="$act==edit"}"Save"{else}"Create"{/if} />
+</form>
+</div>

@@ -1,0 +1,14 @@
+#qemu_new .option_key
+{
+	width: 75px;
+}
+#qemu_new .option_val
+{
+	width: 250px;
+}
+
+#qemu_list .vm_name
+{
+	display: inline-block;
+	width: 100px;
+}

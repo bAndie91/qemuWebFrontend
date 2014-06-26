@@ -1,0 +1,33 @@
+<html>
+<head>
+	<title>{$page.title}</title>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<link rel="stylesheet" href="/static/css/qemu/main.css#" type="text/css" />
+</head>
+<body>
+<h1>Qemu :: {$page.h1}</h1>
+<div id=main_menu class="box">
+	<ul>
+	{loop="main_menu"}
+	<li><a href="{$value.link}">{$value.title}</a></li>
+	{else}
+	No main menu defined.
+	{/loop}
+	</ul>
+</div>
+
+{if="isset($errors)"}
+<div id=errors class="errors box">
+	<ul>
+	{loop="errors"}
+	<li>{$value}</li>
+	{/loop}
+	</ul>
+</div>
+{/if}
+
+<div id=content>
+	{include="$content_tmpl"}
+</div>
+</body>
+</html>
