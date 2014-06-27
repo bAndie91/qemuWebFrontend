@@ -20,63 +20,69 @@ $tmplvar = array(
 		),
 	),
 );
+$GLOBALS["error"] = array();
+$is_xhr = (strtolower(@$_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest');
 
 
 /* ================================================================================ */
 
-switch(@$_REQUEST["act"])
+$Action = @$_REQUEST["act"];
+$vmname = NULL;
+if(is_vmname(@$_REQUEST["name"]))
+{
+	$vmname = $_REQUEST["name"];
+}
+
+switch($Action)
 {
 case "new":
 case "edit":
 	$act_ok = false;
 
-	if(is_vmname(@$_REQUEST["name"]))
-	{
-		$vmname = $_REQUEST["name"];
-	}
-	else
-	{
-		if(isset($_REQUEST["name"])) add_error("invalid VM name");
-		$vmname = "";
-	}
-	
 	if(isset($_REQUEST["submit"]))
 	{
-		$opt = array();
-		foreach($_REQUEST as $key => $val)
+		if(isset($vmname))
 		{
-			if(preg_match('/^opt(key|val)_(\d+)$/', $key, $m))
+			$opt = array();
+			foreach($_REQUEST as $key => $val)
 			{
-				if(!isset($opt[$m[2]])) $opt[$m[2]] = array();
-				$opt[$m[2]][$m[1]] = $val;
+				if(preg_match('/^opt(key|val)_(\d+)$/', $key, $m))
+				{
+					if(!isset($opt[$m[2]])) $opt[$m[2]] = array();
+					$opt[$m[2]][$m[1]] = $val;
+				}
 			}
-		}
-		$options = array();
-		foreach($opt as $a)
-		{
-			if($a["key"]=="") continue;
-			if(!isset($options[$a["key"]])) $options[$a["key"]] = array();
-			$options[$a["key"]][] = $a["val"];
-		}
-		$prm = array(
-			"machine" => array(
-				"name" => $vmname,
-				"opt" => $options,
-			),
-		);
-		
-		if($_REQUEST["act"] == "edit")
-		{
-			$act_ok = qemu_save_opt($ini, $prm);
+			$options = array();
+			foreach($opt as $a)
+			{
+				if($a["key"]=="") continue;
+				if(!isset($options[$a["key"]])) $options[$a["key"]] = array();
+				$options[$a["key"]][] = $a["val"];
+			}
+			$prm = array(
+				"machine" => array(
+					"name" => $vmname,
+					"opt" => $options,
+				),
+			);
+			
+			if($Action == "edit")
+			{
+				$act_ok = qemu_save_opt($ini, $prm);
+			}
+			else
+			{
+				$act_ok = qemu_new($ini, $prm);
+			}
 		}
 		else
 		{
-			$act_ok = qemu_new($ini, $prm);
+			add_error("invalid name");
 		}
 	}
 	else
 	{
-		if($_REQUEST["act"] == "edit")
+		if($Action == "edit")
 		{
 			$prm = array(
 				"machine" => qemu_load($ini, $vmname),
@@ -84,23 +90,23 @@ case "edit":
 		}
 		elseif(isset($_REQUEST["copy"]))
 		{
-			if(is_vmname($_REQUEST["copy"]))
+			if(is_vmname($_REQUEST["copy"]) and is_vmname($_REQUEST["copy"]."-copy"))
 			{
 				$prm = array(
 					"machine" => qemu_load($ini, $_REQUEST["copy"]),
 				);
 				if(isset($prm["machine"]["name"]))
 				{
-					$prm["machine"]["name"] .= "-copy";
+					$prm["machine"]["name"] = $_REQUEST["copy"]."-copy";
 				}
 				else
 				{
-					add_error("no named VM found");
+					add_error("could not copy, no named VM found");
 				}
 			}
 			else
 			{
-				add_error("invalid VM name");
+				add_error("could not copy, invalid VM name");
 			}
 		}
 		else
@@ -142,9 +148,10 @@ case "edit":
 	{
 		$tmplvar["content_tmpl"] = "redirect";
 		$tmplvar["redirect"] = array(
-			"location" => "?act=view&name=".$prm['machine']["name"],
+			"act" => "view",
+			"name" => $prm['machine']["name"],
+			"msg" => ($Action == "edit" ? "options saved for: $vmname" : "new VM is created: $vmname"),
 		);
-		$tmplvar["redirect"]["msg"] = ($_REQUEST["act"] == "edit" ? "options saved for: $vmname" : "new VM is created: $vmname");
 	}
 	else
 	{
@@ -158,36 +165,36 @@ case "edit":
 				$tmplvar["vm"]["opt"][] = array("name"=>$opt_name, "value"=>$value);
 			}
 		}
-		$tmplvar["act"] = $_REQUEST["act"];
+		$tmplvar["act"] = $Action;
 		
 		$tmplvar["content_tmpl"] = "edit";
-		$tmplvar["page"]["h1"] = ($_REQUEST["act"] == "edit" ? "Edit VM" : "Add new VM");
+		$tmplvar["page"]["h1"] = ($Action == "edit" ? "Edit parameters" : "Add new");
 	}
 break;
 case "delete":
-	if(is_vmname($_REQUEST["name"]))
+	$tmplvar["page"]["h1"] = "Delete";
+	if(isset($vmname))
 	{
-		$vmname = $_REQUEST["name"];
+		$tmplvar["vm"]["name"] = $vmname;
 		$ok = qemu_delete($ini, array("machine"=>array("name"=>$vmname)));
 		if($ok)
 		{
 			$tmplvar["content_tmpl"] = "redirect";
 			$tmplvar["redirect"] = array(
 				"msg" => "VM is deleted: $vmname",
-				"location" => "?act=list",
+				"act" => "list",
 			);
 		}
 	}
 	else
 	{
-		add_error("VM name is invalid");
+		add_error("invalid name");
 	}
 break;
 case "start":
 	$act_ok = false;
-	if(is_vmname(@$_REQUEST["name"]))
+	if(isset($vmname))
 	{
-		$vmname = $_REQUEST["name"];
 		$prm = array(
 			"name" => $vmname,
 			"machine" => qemu_load($ini, $vmname),
@@ -196,7 +203,7 @@ case "start":
 	}
 	else
 	{
-		add_error("invalid VM name");
+		add_error("invalid name");
 	}
 	
 	$tmplvar["content_tmpl"] = "redirect";
@@ -204,31 +211,33 @@ case "start":
 	{
 		$tmplvar["redirect"] = array(
 			"msg" => "VM is started: $vmname",
-			"location" => "?act=view&name=$vmname",
+			"act" => "view",
+			"name" => $vmname,
 		);
 	}
 	else
 	{
 		$tmplvar["redirect"] = array(
-			"location" => "?act=list",
+			"act" => "list",
 		);
 	}
 break;
 case "shutdown":
-break;
 case "poweroff":
 case "reset":
-	if(is_vmname($_REQUEST["name"]))
+	if(isset($vmname))
 	{
-		$vmname = $_REQUEST["name"];
 		$prm = array(
 			"name" => $vmname,
 			"machine" => qemu_load($ini, $vmname),
 		);
 		
+		if($Action == "poweroff")	{ $execute = "quit"; $redirect_msg = "VM is turned off"; }
+		elseif($Action == "reset")	{ $execute = "system_reset"; $redirect_msg = "VM is reset"; }
+		elseif($Action == "shutdown")	{ $execute = "system_powerdown"; $redirect_msg = "shutdown is initiated"; }
 		$cmds = array(
 		  array(
-		    "execute"=>($_REQUEST["act"]=="poweroff" ? "quit" : "system_reset"),
+		    "execute"=>$execute,
 		  ),
 		);
 		$reply = qemu_cmd($ini, $prm, $cmds);
@@ -237,11 +246,12 @@ case "reset":
 			$reply = $reply[0];
 			$tmplvar["content_tmpl"] = "redirect";
 			$tmplvar["redirect"] = array(
-				"location" => "?act=list",
+				"act" => "view",
+				"name" => $vmname,
 			);
 			if(isset($reply['return']))
 			{
-				$tmplvar["redirect"]["msg"] = "VM is ".($_REQUEST["act"]=="poweroff" ? "powered off" : "reset").": $vmname";
+				$tmplvar["redirect"]["msg"] = $redirect_msg;
 			}
 			else
 			{
@@ -250,55 +260,116 @@ case "reset":
 		}
 		else
 		{
-			add_error(($_REQUEST["act"]=="poweroff" ? "poweroff" : "reset")." failed");
+			add_error("$Action failed");
 		}
 	}
 break;
 case "view":
-	if(is_vmname($_REQUEST["name"]))
+	if(isset($vmname))
 	{
-		$vmname = $_REQUEST["name"];
 		$prm = array(
 			"name" => $vmname,
 			"machine" => qemu_load($ini, $vmname),
 		);
 		
-		$vncpass = rand(0,100000000);
-		if(isset($prm['machine']["vncpass"])) $vncpass = $prm['machine']["vncpass"];
-		$cmds = array(
-		  array(
-		    "execute"=>"change",
-		    "arguments"=>array(
-		      "device"=>"vnc",
-		      "target"=>"password",
-		      "arg"=>$vncpass,
-		    ),
-		  ),
-		);
+		$cmds = array();
+		if(isset($prm['machine']["vncpass"]))
+		{
+			$cmds[] = array(
+				"execute" => "change",
+				"arguments" => array(
+					"device" => "vnc",
+					"target" => "password",
+					"arg" => $prm['machine']["vncpass"],
+				),
+			);
+		}
 		$reply = qemu_cmd($ini, $prm, $cmds);
 
+		if(!file_exists(@$prm['machine']["screenshot"]["file"]))
+		{
+			if($prm['machine']["running"])
+			{
+				$sh = qemu_refresh_screenshot($ini, $prm);
+				if($sh !== false)
+				{
+					$prm['machine']["screenshot"] = $sh;
+				}
+			}
+		}
+		
+		$tmplvar["vm"] = $prm['machine'];
+		
 		$tmplvar["content_tmpl"] = "view";
-		$tmplvar["page"]["h1"] = $vmname;
+		$tmplvar["page"]["h1"] = "View";
 	}
 	else
 	{
-		add_error("VM name is invalid");
+		add_error("invalid name");
+	}
+break;
+case "refresh_screenshot":
+	if(isset($vmname))
+	{
+		$prm = array(
+			"name" => $vmname,
+			"machine" => qemu_load($ini, $vmname),
+		);
+		
+		if($prm['machine']["running"])
+		{
+			$sh = qemu_refresh_screenshot($ini, $prm);
+			if($sh !== false)
+			{
+				$prm['machine']["screenshot"] = $sh;
+			}
+		}
+		else
+		{
+			add_error("VM is not running");
+		}
+		
+		$tmplvar["vm"] = $prm['machine'];
+	}
+	else
+	{
+		add_error("invalid name");
 	}
 break;
 case "list":
-default:
 	$tmplvar["content_tmpl"] = "list";
 	$tmplvar["page"]["h1"] = "Machines";
 	
-	$machines = qemu_load($ini);
-	$tmplvar["machines"] = $machines;
+	$tmplvar["machines"] = qemu_load($ini);
+break;
+default:
+	if($is_xhr)
+	{
+		add_error("invalid action");
+	}
+	else
+	{
+		$tmplvar["content_tmpl"] = "redirect";
+		$tmplvar["redirect"] = array(
+			"act" => "list",
+			"msg" => "See VM list",
+		);
+	}
 }
 
 
 /* ================================================================================ */
 
-foreach($tmplvar as $key => $val) $tmpl->assign($key, $val);
-if(isset($GLOBALS["error"])) $tmpl->assign("errors", $GLOBALS["error"]);
-$output = $tmpl->draw("index", $return_string = true);
-echo $output;
+if($is_xhr)
+{
+	$tmplvar["error"] = $GLOBALS["error"];
+	// TODO // $tmplvar["result"] = ;
+	echo json_encode($tmplvar);
+}
+else
+{
+	foreach($tmplvar as $key => $val) $tmpl->assign($key, $val);
+	$tmpl->assign("errors", $GLOBALS["error"]);
+	$tmpl->draw("index");
+}
 

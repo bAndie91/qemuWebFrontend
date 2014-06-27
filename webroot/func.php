@@ -35,7 +35,6 @@ function add_error($str, $level = NULL)
 {
 	if(!empty($str))
 	{
-		if(!isset($GLOBALS['error'])) $GLOBALS['error'] = array();
 		$GLOBALS['error'][] = $str;
 	}
 }

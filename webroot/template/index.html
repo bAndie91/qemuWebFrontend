@@ -3,9 +3,11 @@
 	<title>{$page.title}</title>
 	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
 	<link rel="stylesheet" href="/static/css/qemu/main.css#" type="text/css" />
+	<script src="/static/js/jquery.min.js#" type="text/javascript"></script>
+	<script src="/static/js/qemu/main.js#" type="text/javascript"></script>
 </head>
 <body>
-<h1>Qemu :: {$page.h1}</h1>
+<h1>Qemu :: {$page.h1}{if="isset($vm.name)"} :: {$vm.name}{/if}</h1>
 <div id=main_menu class="box">
 	<ul>
 	{loop="main_menu"}

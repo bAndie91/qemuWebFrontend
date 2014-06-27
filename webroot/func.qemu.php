@@ -54,8 +54,10 @@ function qemu_load($ini, $vmname = NULL, $load_opts = true)
 			);
 			if($load_opts)
 			{
+				$prm = array('machine'=>$vmlist[$entry]);
 				$vmlist[$entry]["opt"] = qemu_load_opt("$dir/$entry/options");
-				$vmlist[$entry]["running"] = qemu_running($ini, array('machine'=>$vmlist[$entry]));
+				$vmlist[$entry]["running"] = qemu_running($ini, $prm);
+				$vmlist[$entry]["screenshot"] = qemu_load_screenshot($ini, $prm);
 			}
 		}
 	}
@@ -84,6 +86,29 @@ function qemu_load_opt($opt_dir)
 	}
 	@closedir($dh);
 	return $return;
+}
+
+function qemu_load_screenshot($ini, $prm)
+{
+	$vmname = $prm['machine']["name"];
+	$filename = $ini["qemu"]["screenshot_prefix"].$vmname.$ini["qemu"]["screenshot_suffix"].".".$ini["qemu"]["screenshot_ext"];
+	$filepath = $ini["qemu"]["screenshot_dir"]."/$filename";
+	$url = $ini["qemu"]["screenshot_baseurl"]."/$filename";
+	
+	if(file_exists($filepath))
+	{
+		$stat = stat($filepath);
+		return array(
+			"file" => $filepath,
+			"url" => $url,
+			"timestamp" => $stat['mtime'],
+			"timestr" => strftime('%c', $stat['mtime']),
+		);
+	}
+	else
+	{
+		return array();
+	}
 }
 
 function qemu_save_opt($ini, $prm)
@@ -333,7 +358,7 @@ function qemu_cmd($ini, $prm, $cmds)
 	$fd = @fsockopen("unix://$qmp", -1, $errno);
 	if($fd)
 	{
-		fgets($fd); // HELO
+		fgets($fd); /* HELO */
 		fwrite($fd, json_encode(array("execute"=>"qmp_capabilities")));
 		foreach($cmds as $cmd)
 		{
@@ -348,5 +373,43 @@ function qemu_cmd($ini, $prm, $cmds)
 	}
 	@fclose($fd);
 	return $return;
+}
+
+function qemu_refresh_screenshot($ini, $prm)
+{
+	$vmname = $prm['machine']["name"];
+	$basename = $ini["qemu"]["screenshot_prefix"].$vmname.$ini["qemu"]["screenshot_suffix"];
+	$dumppath = $ini["qemu"]["screenshot_dir"]."/$basename.ppm";
+	$filename = "$basename.".$ini["qemu"]["screenshot_ext"];
+	$filepath = $ini["qemu"]["screenshot_dir"]."/$filename";
+	
+	$cmd = array(
+		"execute" => "screendump",
+		"arguments" => array(
+			"filename" => $dumppath,
+		),
+	);
+	
+	$reply = qemu_cmd($ini, $prm, array($cmd));
+	// TODO // error handle
+	// TODO // wait for
+	
+	$cmd = execve("convert", array($dumppath, $filepath));
+	if($cmd["code"] == 0)
+	{
+		unlink($dumppath);
+		$stat = stat($filepath);
+		return array(
+			"file" => $filepath,
+			"url" => $ini["qemu"]["screenshot_baseurl"]."/$filename",
+			"timestamp" => $stat['mtime'],
+			"timestr" => strftime('%c', $stat['mtime']),
+		);
+	}
+	else
+	{
+		add_error("convert failed, ".print_r($cmd["stderr"], true));
+	}
+	return false;
 }
 

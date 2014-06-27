@@ -1,3 +1,26 @@
 <div id=qemu_view>
 
+State: {if="$vm.running"}<b>ON</b>{else}OFF{/if}
+<br/>
+	<input type=button onClick="qemu.act('start', '{$vm.name}');" value="start" />
+	<input type=button onClick="qemu.act('shutdown', '{$vm.name}');" value="shutdown" />
+	<input type=button onClick="qemu.act('poweroff', '{$vm.name}');" value="poweroff" />
+	<input type=button onClick="qemu.act('reset', '{$vm.name}');" value="reset" />
+	<a href="?act=delete&name={$vm.name}">delete</a>
+	<a href="?act=new&copy={$vm.name}">copy</a>
+	<a href="?act=edit&name={$vm.name}">edit</a>
+	<a href="?act=view&name={$vm.name}">view</a>
+<br/>
+
+<h3>Preview</h3>
+	Time: <span id=screenshot_time>{$vm.screenshot.timestr}</span>
+	<input type=button onClick="qemu.screenshot('{$vm.name}', $('#screenshot'), $('#no_screenshot'), $('#screenshot_time'));" value="Refresh" />
+	<br/>
+	<br/>
+	{if="isset($vm.screenshot.url)"}
+		<img src="{$vm.screenshot.url}?ts={$vm.screenshot.timestamp}#" id=screenshot />
+	{else}
+		<span id=no_screenshot>no preview</span>
+		<img id=screenshot style="display: none;" />
+	{/if}
 </div>

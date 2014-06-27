@@ -1,4 +1,8 @@
 <div id=redirect>
 {$redirect.msg}<br/>
+{if="isset($redirect.location)"}
 <a href="{$redirect.location}">continue...</a>
+{else}
+<a href='?act={$redirect.act}{if="isset($redirect.name)"}&name={$redirect.name}{/if}'>continue...</a>
+{/if}
 </div>
