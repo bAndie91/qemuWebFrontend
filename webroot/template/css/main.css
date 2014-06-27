@@ -12,3 +12,14 @@
 	display: inline-block;
 	width: 100px;
 }
+
+.clear
+{
+	clear: both;
+}
+
+#notepad
+{
+	width: 250px;
+	height: 64px;
+}

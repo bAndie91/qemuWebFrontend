@@ -56,7 +56,7 @@ function qemu_load($ini, $vmname = NULL, $load_opts = true)
 			{
 				$prm = array('machine'=>$vmlist[$entry]);
 				$vmlist[$entry]["opt"] = qemu_load_opt("$dir/$entry/options");
-				$vmlist[$entry]["running"] = qemu_running($ini, $prm);
+				$vmlist[$entry]["state"] = qemu_vmstate($ini, $prm);
 				$vmlist[$entry]["screenshot"] = qemu_load_screenshot($ini, $prm);
 			}
 		}
@@ -152,6 +152,12 @@ function qemu_save_opt($ini, $prm)
 
 function qemu_start($ini, $prm)
 {
+	if(qemu_running($ini, $prm))
+	{
+		add_error("already running");
+		return false;
+	}
+	
 	$pwd = getcwd();
 	$dir = $ini['qemu']['machine_dir']."/".$prm['machine']["name"];
 	$ok = chdir($dir);
@@ -332,6 +338,12 @@ function qemu_mk_opt($opt_array)
 
 function qemu_running($ini, $prm)
 {
+	$status = qemu_vmstate($ini, $prm);
+	return $status["running"];
+}
+
+function qemu_vmstate($ini, $prm)
+{
 	$running = false;
 	$qmp = $ini['qemu']['machine_dir']."/".$prm['machine']["name"]."/qmp.sock";
 	
@@ -340,14 +352,37 @@ function qemu_running($ini, $prm)
 	{
 		$json = fgets($fd);
 		$helo = json_decode($json, true);
-		if(isset($helo['QMP'])) $running = true;
+		if(isset($helo['QMP']))
+		{
+			$running = true;
+		}
 	}
 	else
 	{
 		// TODO // if($errno ...
+		$cmd = execve("lsof", array("-n", "-Fpc", $qmp));
+		if($cmd["code"] == 0)
+		{
+			foreach(explode("\n", $cmd["stdout"]) as $line)
+			{
+				if(preg_match('/^cqemu$/', $line, $m))
+				{
+					$running = true;
+					break;
+				}
+			}
+		}
 	}
 	@fclose($fd);
-	return $running;
+	if($running)
+	{
+		$reply = qemu_single_cmd($ini, $prm, "query-status");
+		$paused = !$reply['return']['running'];
+	}
+	return array(
+		"running" => $running,
+		"paused" => @$paused,
+	);
 }
 
 function qemu_cmd($ini, $prm, $cmds)
@@ -360,10 +395,35 @@ function qemu_cmd($ini, $prm, $cmds)
 	{
 		fgets($fd); /* HELO */
 		fwrite($fd, json_encode(array("execute"=>"qmp_capabilities")));
+		fgets($fd); /* reply for qmp_capabilities */
 		foreach($cmds as $cmd)
 		{
-			fwrite($fd, json_encode($cmd));
-			$return[] = json_decode(fgets($fd), true);
+			$ok = fwrite($fd, json_encode($cmd));
+			if($ok !== false)
+			{
+				while(true)
+				{
+					$line = fgets($fd);
+					if($line !== false)
+					{
+						$json = json_decode($line, true);
+						if(isset($json["return"])) break;
+						if(isset($json["error"])) break;
+					}
+					else
+					{
+						add_error("read from qmp socket failed, command was '{$cmd['execute']}'");
+						$json = false;
+						break;
+					}
+				}
+				$return[] = $json;
+			}
+			else
+			{
+				add_error("write to qmp socket failed, command was '{$cmd['execute']}'");
+				$return[] = $json;
+			}
 		}
 	}
 	else
@@ -373,6 +433,35 @@ function qemu_cmd($ini, $prm, $cmds)
 	}
 	@fclose($fd);
 	return $return;
+}
+
+function qemu_single_cmd($ini, $prm, $cmd, $args = NULL)
+{
+	$cmds = array(array("execute"=>$cmd));
+	if(isset($args)) $cmds[0]["arguments"] = $args;
+	$reply = qemu_cmd($ini, $prm, $cmds);
+	return $reply[0];
+}
+
+function qemu_single_human_cmd($ini, $prm, $cmd)
+{
+	return qemu_single_cmd($ini, $prm, "human-monitor-command", array("command-line" => $cmd));
+}
+
+function qemu_human_cmd($ini, $prm, $cmds)
+{
+	return qemu_cmd($ini, $prm, array_map(
+		function($str)
+		{
+			return array(
+				"execute" => "human-monitor-command",
+				"arguments" => array(
+					"command-line" => $str,
+				),
+			);
+		},
+		$cmds)
+	);
 }
 
 function qemu_refresh_screenshot($ini, $prm)

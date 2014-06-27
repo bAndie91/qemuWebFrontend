@@ -30,3 +30,4 @@ define('S_IXOTH',    0x00001);
 
 define('VNC_DISPLAY_MAX', 1024);
 define('VNC_PORT_BASE', 5900);
+

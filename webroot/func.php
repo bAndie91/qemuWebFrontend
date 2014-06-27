@@ -61,6 +61,7 @@ function execve($cmd, $args = array())
 
 function pipe_get_contents($fd)
 {
+	$buf = '';
 	do $buf .= fread($fd, 4096);
 	while(!feof($fd));
 	return $buf;
@@ -76,4 +77,15 @@ function array_escapeshellarg($array)
 		$array);
 }
 
+/*
+function dfpc($str)
+{
+	file_put_contents("/tmp/qd", $str."\n", FILE_APPEND);
+}
+*/
 
+function is_alnum($ord)
+{
+	return(($ord >= 0x30 and $ord <= 0x39) or ($ord >= 0x41 and $ord <= 0x5A) or ($ord >= 0x61 and $ord <= 0x7A));
+	
+}

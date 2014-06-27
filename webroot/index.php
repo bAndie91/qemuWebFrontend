@@ -225,6 +225,8 @@ break;
 case "shutdown":
 case "poweroff":
 case "reset":
+case "pause":
+case "resume":
 	if(isset($vmname))
 	{
 		$prm = array(
@@ -235,15 +237,12 @@ case "reset":
 		if($Action == "poweroff")	{ $execute = "quit"; $redirect_msg = "VM is turned off"; }
 		elseif($Action == "reset")	{ $execute = "system_reset"; $redirect_msg = "VM is reset"; }
 		elseif($Action == "shutdown")	{ $execute = "system_powerdown"; $redirect_msg = "shutdown is initiated"; }
-		$cmds = array(
-		  array(
-		    "execute"=>$execute,
-		  ),
-		);
-		$reply = qemu_cmd($ini, $prm, $cmds);
+		elseif($Action == "pause")	{ $execute = "stop"; $redirect_msg = "VM is paused"; }
+		elseif($Action == "resume")	{ $execute = "cont"; $redirect_msg = "VM is resumed"; }
+
+		$reply = qemu_single_cmd($ini, $prm, $execute);
 		if($reply !== false)
 		{
-			$reply = $reply[0];
 			$tmplvar["content_tmpl"] = "redirect";
 			$tmplvar["redirect"] = array(
 				"act" => "view",
@@ -288,7 +287,7 @@ case "view":
 
 		if(!file_exists(@$prm['machine']["screenshot"]["file"]))
 		{
-			if($prm['machine']["running"])
+			if($prm['machine']["state"]["running"])
 			{
 				$sh = qemu_refresh_screenshot($ini, $prm);
 				if($sh !== false)
@@ -308,6 +307,53 @@ case "view":
 		add_error("invalid name");
 	}
 break;
+case "event":
+	if(isset($vmname))
+	{
+		$prm = array(
+			"name" => $vmname,
+			"machine" => qemu_load($ini, $vmname),
+		);
+		
+		
+		if($_REQUEST["param"]["event"] == "key")
+		{
+			$cmds = array();
+			foreach($_REQUEST["param"]["keys"] as $event)
+			{
+				$keyCode = $event["keyCode"];
+				if(isset($ini["keys"][$keyCode])) $keySeq = $ini["keys"][$keyCode];
+				elseif(is_alnum($keyCode)) $keySeq = chr($keyCode);
+				if(isset($keySeq))
+				{
+					foreach(array("ctrl", "alt", "shift") as $mod)
+					{
+						if(@$event[$mod."Key"] == "true") $keySeq = "$mod-$keySeq";
+					}
+					$cmds[] = "sendkey $keySeq";
+				}
+			}
+		}
+		else
+		{
+			add_error("unknown event");
+		}
+		
+		if(!empty($cmds))
+		{
+			$reply = qemu_human_cmd($ini, $prm, $cmds);
+			if($reply !== false)
+			{
+			}
+			else
+			{
+				add_error("dispatch failed");
+			}
+			$tmplvar["debug"]["cmds"] = $cmds;
+			$tmplvar["debug"]["reply"] = $reply;
+		}
+	}
+break;
 case "refresh_screenshot":
 	if(isset($vmname))
 	{
@@ -316,7 +362,7 @@ case "refresh_screenshot":
 			"machine" => qemu_load($ini, $vmname),
 		);
 		
-		if($prm['machine']["running"])
+		if($prm['machine']["state"]["running"])
 		{
 			$sh = qemu_refresh_screenshot($ini, $prm);
 			if($sh !== false)
@@ -341,6 +387,16 @@ case "list":
 	$tmplvar["page"]["h1"] = "Machines";
 	
 	$tmplvar["machines"] = qemu_load($ini);
+break;
+case "get":
+	if($vmname)
+	{
+		$tmplvar["vm"] = qemu_load($ini, $vmname);
+	}
+	else
+	{
+		add_error("invalid name");
+	}
 break;
 default:
 	if($is_xhr)
