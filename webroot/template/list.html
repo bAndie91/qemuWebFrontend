@@ -2,7 +2,15 @@
 <ul id=qemu_list>
 {loop="machines"}
 	<li><span class="vm_name">{$value.name}</span>
-		{if="$value.state.running"}<b>ON</b>{else}OFF{/if}
+		{if="$value.state.running"}
+			{if="$value.state.paused"}
+				&#9616;&#9616;
+			{else}
+				&#9654;
+			{/if}
+		{else}
+			&#9632;
+		{/if}
 		<a href="?act=start&name={$value.name}">start</a>
 		<a href="?act=shutdown&name={$value.name}">shutdown</a>
 		<a href="?act=poweroff&name={$value.name}">poweroff</a>

@@ -1,10 +1,10 @@
-<div id=qemu_new>
+<div id=qemu_edit>
 <form method=POST>
 	<input type=hidden name=act value="{$act}" />
 	{if="$act==edit"}
 	<input type=hidden name=name value="{$vm.name}" />
 	{/if}
-	<table>
+	<table id=options>
 	<tr>
 		<td>Name</td>
 		<td>{if="$act==edit"}{$vm.name}{else}<input type=text name=name value="{$vm.name}" />{/if}</td>
@@ -19,6 +19,38 @@
 	</tr>
 	{/loop}
 	</table>
+	<input type=button onClick="addOption();" value="Add Option" />
+	<br/>
 	<input type=submit name=submit value={if="$act==edit"}"Save"{else}"Create"{/if} />
 </form>
 </div>
+
+<script type="text/javascript">
+function addOption()
+{
+	var counter = 0;
+	$('[data-counter]').each(function()
+	{
+		var c = $(this).data('counter');
+		if(c >= counter) counter = c+1;
+	});
+	
+	var input1 = $('<input type=text />');
+	var input2 = $('<input type=text />');
+	input1.attr('class', 'option_key');
+	input2.attr('class', 'option_val');
+	input1.attr('name', 'optkey_'+counter);
+	input2.attr('name', 'optval_'+counter);
+	input1.attr('data-counter', counter);
+	input2.attr('data-counter', counter);
+	
+	var row = $('<tr/>');
+	var cell1 = $('<td/>');
+	var cell2 = $('<td/>');
+	cell1.append(input1);
+	cell2.append(input2);
+	row.append(cell1);
+	row.append(cell2);
+	$('table#options').append(row);
+}
+</script>

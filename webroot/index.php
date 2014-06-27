@@ -48,7 +48,6 @@ case "edit":
 			{
 				if(preg_match('/^opt(key|val)_(\d+)$/', $key, $m))
 				{
-					if(!isset($opt[$m[2]])) $opt[$m[2]] = array();
 					$opt[$m[2]][$m[1]] = $val;
 				}
 			}
@@ -56,7 +55,6 @@ case "edit":
 			foreach($opt as $a)
 			{
 				if($a["key"]=="") continue;
-				if(!isset($options[$a["key"]])) $options[$a["key"]] = array();
 				$options[$a["key"]][] = $a["val"];
 			}
 			$prm = array(
@@ -124,13 +122,13 @@ case "edit":
 			);
 		}
 		
-		foreach($prm['machine']['opt'] as $key => $value)
+		foreach($prm['machine']['opt'] as $key => $values)
 		{
 			if($key == 'display' or $key == 'vnc')
 			{
 				$regex = '/((\d+\.){3}\d+):\*/';
 				if($key == 'display') $regex = '/(vnc=(\d+\.){3}\d+):\*/';
-				foreach($value as &$str)
+				foreach($values as &$str)
 				{
 					if(preg_match($regex, $str))
 					{
@@ -140,7 +138,7 @@ case "edit":
 					}
 				}
 			}
-			$prm['machine']['opt'][$key] = $value;
+			$prm['machine']['opt'][$key] = $values;
 		}
 	}
 
@@ -148,7 +146,7 @@ case "edit":
 	{
 		$tmplvar["content_tmpl"] = "redirect";
 		$tmplvar["redirect"] = array(
-			"act" => "view",
+			"act" => "edit",
 			"name" => $prm['machine']["name"],
 			"msg" => ($Action == "edit" ? "options saved for: $vmname" : "new VM is created: $vmname"),
 		);
@@ -160,9 +158,16 @@ case "edit":
 		ksort($prm['machine']['opt']);
 		foreach($prm['machine']['opt'] as $opt_name => $opts)
 		{
-			foreach($opts as $value)
+			if(empty($opts))
 			{
-				$tmplvar["vm"]["opt"][] = array("name"=>$opt_name, "value"=>$value);
+				$tmplvar["vm"]["opt"][] = array("name"=>$opt_name, "value"=>"");
+			}
+			else
+			{
+				foreach($opts as $value)
+				{
+					$tmplvar["vm"]["opt"][] = array("name"=>$opt_name, "value"=>$value);
+				}
 			}
 		}
 		$tmplvar["act"] = $Action;

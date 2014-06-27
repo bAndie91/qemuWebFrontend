@@ -113,7 +113,7 @@ function qemu_load_screenshot($ini, $prm)
 
 function qemu_save_opt($ini, $prm)
 {
-	$file = array();
+	$opt_names = array_keys($prm['machine']["opt"]);
 	$dir = $ini['qemu']['machine_dir']."/".$prm['machine']["name"]."/options";
 	if(!is_dir($dir))
 	{
@@ -127,9 +127,9 @@ function qemu_save_opt($ini, $prm)
 	$dh = opendir($dir);
 	while($entry = readdir($dh))
 	{
-		if(!in_array($entry, $prm['machine']["opt"]))
+		if(!is_file("$dir/$entry")) continue;
+		if(!in_array($entry, $opt_names) or !is_writable("$dir/$entry"))
 		{
-			if(!is_file("$dir/$entry")) continue;
 			$ok = unlink("$dir/$entry");
 			if(!$ok)
 			{
@@ -138,9 +138,9 @@ function qemu_save_opt($ini, $prm)
 			}
 		}
 	}
-	foreach($prm['machine']["opt"] as $opt_name => $opt_value)
+	foreach($prm['machine']["opt"] as $opt_name => $opt_values)
 	{
-		$ok = file_put_contents("$dir/$opt_name", implode("\n", (array)$opt_value));
+		$ok = file_put_contents("$dir/$opt_name", implode("\n", (array)$opt_values));
 		if($ok === false)
 		{
 			add_error("fwrite($dir/$opt_name) failed");

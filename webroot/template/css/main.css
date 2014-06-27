@@ -1,8 +1,8 @@
-#qemu_new .option_key
+#qemu_edit .option_key
 {
 	width: 75px;
 }
-#qemu_new .option_val
+#qemu_edit .option_val
 {
 	width: 250px;
 }
