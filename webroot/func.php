@@ -89,3 +89,4 @@ function is_alnum($ord)
 	return(($ord >= 0x30 and $ord <= 0x39) or ($ord >= 0x41 and $ord <= 0x5A) or ($ord >= 0x61 and $ord <= 0x7A));
 	
 }
+

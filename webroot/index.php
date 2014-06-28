@@ -1,5 +1,7 @@
 <?php
 
+session_start();
+
 require_once("header.php");
 require_once("raintpl/rain.tpl.class.php");
 
@@ -21,6 +23,17 @@ $tmplvar = array(
 	),
 );
 $GLOBALS["error"] = array();
+if(isset($_SESSION["error"]))
+{
+	foreach($_SESSION["error"] as $str) add_error($str);
+	unset($_SESSION["error"]);
+}
+$Messages = array();
+if(isset($_SESSION["redirect_msg"]))
+{
+	$Messages[] = $_SESSION["redirect_msg"];
+	unset($_SESSION["redirect_msg"]);
+}
 $is_xhr = (strtolower(@$_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest');
 
 
@@ -144,11 +157,10 @@ case "edit":
 
 	if($act_ok)
 	{
-		$tmplvar["content_tmpl"] = "redirect";
-		$tmplvar["redirect"] = array(
-			"act" => "edit",
-			"name" => $prm['machine']["name"],
+		$Redirect = array(
 			"msg" => ($Action == "edit" ? "options saved for: $vmname" : "new VM is created: $vmname"),
+			"act" => "edit",
+			"name" => $vmname,
 		);
 	}
 	else
@@ -184,8 +196,7 @@ case "delete":
 		$ok = qemu_delete($ini, array("machine"=>array("name"=>$vmname)));
 		if($ok)
 		{
-			$tmplvar["content_tmpl"] = "redirect";
-			$tmplvar["redirect"] = array(
+			$Redirect = array(
 				"msg" => "VM is deleted: $vmname",
 				"act" => "list",
 			);
@@ -211,10 +222,9 @@ case "start":
 		add_error("invalid name");
 	}
 	
-	$tmplvar["content_tmpl"] = "redirect";
 	if($act_ok)
 	{
-		$tmplvar["redirect"] = array(
+		$Redirect = array(
 			"msg" => "VM is started: $vmname",
 			"act" => "view",
 			"name" => $vmname,
@@ -222,7 +232,7 @@ case "start":
 	}
 	else
 	{
-		$tmplvar["redirect"] = array(
+		$Redirect = array(
 			"act" => "list",
 		);
 	}
@@ -248,14 +258,13 @@ case "resume":
 		$reply = qemu_single_cmd($ini, $prm, $execute);
 		if($reply !== false)
 		{
-			$tmplvar["content_tmpl"] = "redirect";
-			$tmplvar["redirect"] = array(
+			$Redirect = array(
 				"act" => "view",
 				"name" => $vmname,
 			);
 			if(isset($reply['return']))
 			{
-				$tmplvar["redirect"]["msg"] = $redirect_msg;
+				$Redirect["msg"] = $redirect_msg;
 			}
 			else
 			{
@@ -326,9 +335,16 @@ case "event":
 			$cmds = array();
 			foreach($_REQUEST["param"]["keys"] as $event)
 			{
-				$keyCode = $event["keyCode"];
-				if(isset($ini["keys"][$keyCode])) $keySeq = $ini["keys"][$keyCode];
-				elseif(is_alnum($keyCode)) $keySeq = chr($keyCode);
+				if(isset($event["keyName"]))
+				{
+					$keySeq = $event["keyName"];
+				}
+				else
+				{
+					$keyCode = $event["keyCode"];
+					if(isset($ini["keys"][$keyCode])) $keySeq = $ini["keys"][$keyCode];
+					elseif(is_alnum($keyCode)) $keySeq = chr($keyCode);
+				}
 				if(isset($keySeq))
 				{
 					foreach(array("ctrl", "alt", "shift") as $mod)
@@ -410,10 +426,8 @@ default:
 	}
 	else
 	{
-		$tmplvar["content_tmpl"] = "redirect";
-		$tmplvar["redirect"] = array(
+		$Redirect = array(
 			"act" => "list",
-			"msg" => "See VM list",
 		);
 	}
 }
@@ -424,13 +438,24 @@ default:
 if($is_xhr)
 {
 	$tmplvar["error"] = $GLOBALS["error"];
+	if(isset($Redirect)) $tmplvar["redirect"] = $Redirect;
 	// TODO // $tmplvar["result"] = ;
 	echo json_encode($tmplvar);
 }
 else
 {
-	foreach($tmplvar as $key => $val) $tmpl->assign($key, $val);
-	$tmpl->assign("errors", $GLOBALS["error"]);
-	$tmpl->draw("index");
+	if(isset($Redirect))
+	{
+		header("Location: ".$_SERVER["SCRIPT_NAME"]."?act=".$Redirect["act"].(isset($Redirect["name"])?("&name=".$Redirect["name"]):""));
+		$_SESSION["error"] = $GLOBALS["error"];
+		$_SESSION["redirect_msg"] = $Redirect["msg"];
+	}
+	else
+	{
+		foreach($tmplvar as $key => $val) $tmpl->assign($key, $val);
+		$tmpl->assign("messages", $Messages);
+		$tmpl->assign("errors", $GLOBALS["error"]);
+		$tmpl->draw("index");
+	}
 }
 

@@ -18,7 +18,17 @@
 	</ul>
 </div>
 
-{if="isset($errors)"}
+{if="!empty($messages)"}
+<div id=messages class="messages box">
+	<ul>
+	{loop="messages"}
+	<li>{$value}</li>
+	{/loop}
+	</ul>
+</div>
+{/if}
+
+{if="!empty($errors)"}
 <div id=errors class="errors box">
 	<ul>
 	{loop="errors"}

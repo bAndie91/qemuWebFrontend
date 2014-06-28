@@ -23,3 +23,23 @@
 	width: 250px;
 	height: 64px;
 }
+
+#keyboard input[type=button],
+#keyboard td
+{
+	width: 25px;
+	height: 25px;
+	padding: 0;
+}
+
+#keyboard input[type=button].wide
+{
+	width: 50px;
+}
+
+#keyboard input[type=button].high
+{
+	height: 50px;
+}
+
+

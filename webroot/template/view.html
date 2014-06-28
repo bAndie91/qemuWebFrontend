@@ -5,7 +5,7 @@ State:
 	<span class="vmstate_off" style="display: none;">OFF</span>
 	<input type=button id=btn_refresh value="Refresh" />
 <br/>
-	<span class="vmstate_off">
+	<span class="vmstate_off" style="display: none;">
 		<input type=button onClick="qemu.act('start', {}, '{$vm.name}'); refresh_state();" value="start" />
 	</span>
 	<span class="vmstate_paused" style="display: none;">
@@ -14,7 +14,7 @@ State:
 	<span class="vmstate_unpaused" style="display: none;">
 		<input type=button onClick="qemu.act('pause', {}, '{$vm.name}'); refresh_state();" value="pause" />
 	</span>
-	<span class="vmstate_on">
+	<span class="vmstate_on" style="display: none;">
 		<input type=button onClick="qemu.act('shutdown', {}, '{$vm.name}');" value="shutdown" />
 		<input type=button onClick="qemu.act('poweroff', {}, '{$vm.name}'); refresh_state();" value="poweroff" />
 		<input type=button onClick="qemu.act('reset', {}, '{$vm.name}');" value="reset" />
@@ -36,9 +36,40 @@ State:
 		<span id=no_screenshot>no preview</span>
 	{/if}
 	</div>
+	
 	<div style="float: right;">
-	Typing here goes to VM:<br/>
-	<textarea id=notepad></textarea>
+		Typing here goes to VM:<br/>
+		buffer length: <span id=buffer_length>0</span><br/>
+		<textarea id=notepad></textarea>
+		<table id=keyboard>
+		<tr>
+			<td><input type=button value="Esc" onClick="keyEvent({keyName:'esc'});" /></td>
+			<td><input type=button value="Ins" onClick="keyEvent({keyName:'insert'});" /></td>
+			<td><input type=button value="Home" onClick="keyEvent({keyName:'home'});" /></td>
+			<td><input type=button value="PgUp" onClick="keyEvent({keyName:'pgup'});" /></td>
+			<td><input type=button value="" onClick="keyEvent();" /></td>
+		</tr>
+		<tr>
+			<td><input type=button value="" onClick="keyEvent();" /></td>
+			<td><input type=button value="Del" onClick="keyEvent({keyName:'delete'});" /></td>
+			<td><input type=button value="End" onClick="keyEvent({keyName:'end'});" /></td>
+			<td><input type=button value="PgDn" onClick="keyEvent({keyName:'pgdn'});" /></td>
+			<td><input type=button value="" onClick="keyEvent();" /></td>
+		</tr>
+		<tr>
+			<td><input type=button value="" onClick="keyEvent();" /></td>
+			<td><input type=button value="" onClick="keyEvent();" /></td>
+			<td><input type=button value="&#8593;" onClick="keyEvent({keyName:'up'});" /></td>
+			<td><input type=button value="" onClick="keyEvent();" /></td>
+			<td><input type=button value="" onClick="keyEvent();" /></td>
+		</tr>
+		<tr>
+			<td><input type=button value="" onClick="keyEvent();" /></td>
+			<td><input type=button value="&#8592;" onClick="keyEvent({keyName:'left'});" /></td>
+			<td><input type=button value="&#8595;" onClick="keyEvent({keyName:'down'});" /></td>
+			<td><input type=button value="&#8594;" onClick="keyEvent({keyName:'right'});" /></td>
+			<td colspan=2><input type=button class="wide" value="Return" onClick="keyEvent({keyName:'ret'});" /></td>
+		</tr>
 	</div>
 	<div class=clear></div>
 </div>
@@ -55,6 +86,11 @@ function refresh_state(param)
 		state_off: $('.vmstate_off'),
 		state_paused: $('.vmstate_paused'),
 		state_unpaused: $('.vmstate_unpaused'),
+		
+		enable_on: $('#notepad, #keyboard input'),
+		enable_off: $(null),
+		enable_paused: $(null),
+		enable_unpaused: $('#notepad, #keyboard input'),
 	});
 	if(param && param.refresh_screenshot && document.qemuvm.state.running)
 	{
@@ -62,11 +98,21 @@ function refresh_state(param)
 	}
 }
 
-function sendkeys()
+function sendKeys()
 {
 	qemu.act("event", {event: "key", keys: document.keyBuffer}, '{$vm.name}');
 	document.keyBuffer = [];
+	$('#buffer_length').text(0);
 	qemu.screenshot('{$vm.name}', {img: $('#screenshot'), noimg: $('#no_screenshot'), time: $('#screenshot_time')});
+}
+
+function keyEvent(event)
+{
+	if(event == undefined) return;
+	if(document.keyTimeout != undefined) clearTimeout(document.keyTimeout);
+	document.keyBuffer.push(event);
+	$('#buffer_length').text( $('#buffer_length').text()*1+1 );
+	document.keyTimeout = setTimeout(sendKeys, 1000);
 }
 
 $(document).ready(function()
@@ -82,14 +128,15 @@ $(document).ready(function()
 
 	$('#notepad').keypress(function(event)
 	{
-		if(document.keyTimeout != undefined) clearTimeout(document.keyTimeout);
 		var a = {keyCode: event.keyCode};
 		if(event.altKey) a.altKey = 1;
 		if(event.ctrlKey) a.ctrlKey = 1;
 		if(event.metaKey) a.metaKey = 1;
 		if(event.shiftKey) a.shiftKey = 1;
-		document.keyBuffer.push(a);
-		document.keyTimeout = setTimeout(sendkeys, 1000);
+		
+		keyEvent(a);
+		
+		if(event.keyCode == 27) this.value = '';
 		
 		if((event.keyCode >= 0x30 && event.keyCode <= 0x39) || 
 		   (event.keyCode >= 0x41 && event.keyCode <= 0x5A) || 

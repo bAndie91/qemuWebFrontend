@@ -1,3 +1,21 @@
+
+$.fn.extend({
+	disable: function()
+	{
+		return this.each(function()
+		{
+			this.disabled = true;
+		});
+	},
+	enable: function()
+	{
+		return this.each(function()
+		{
+			this.disabled = false;
+		});
+	}
+});
+
 qemu = {
 	call: function(post, args, cb_success, cb_fail)
 	{
@@ -85,15 +103,25 @@ qemu = {
 			{
 				a.element.state_on.show();
 				a.element.state_off.hide();
+
+				a.element.enable_on.enable();
+				a.element.enable_off.disable();
+				
 				if(json.vm.state.paused)
 				{
 					a.element.state_paused.show();
 					a.element.state_unpaused.hide();
+
+					a.element.enable_paused.enable();
+					a.element.enable_unpaused.disable();
 				}
 				else
 				{
 					a.element.state_paused.hide();
 					a.element.state_unpaused.show();
+
+					a.element.enable_paused.disable();
+					a.element.enable_unpaused.enable();
 				}
 			}
 			else
@@ -102,6 +130,9 @@ qemu = {
 				a.element.state_off.show();
 				a.element.state_paused.hide();
 				a.element.state_unpaused.hide();
+				
+				a.element.enable_on.disable();
+				a.element.enable_off.enable();
 			}
 		});
 	}
