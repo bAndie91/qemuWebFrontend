@@ -52,5 +52,49 @@ function addOption()
 	row.append(cell1);
 	row.append(cell2);
 	$('table#options').append(row);
+	
+	setAutoComplete.call(cell1);
+	$(cell1).blur(setAutoComplete2);
 }
+
+function setAutoComplete()
+{
+	var a = '';
+	if($(this).is('.option_key'))
+	{
+		a = 'type=option';
+	}
+	else
+	{
+		var c = $(this).data('counter');
+		var v = $('[name="optkey_' + c + '"]').val();
+		a = 'option=' + v;
+	}
+	
+	$(this).autocomplete({
+		url: 'index.php?act=autocomplete&'+a,
+		delay: 800,
+		queryParamName: 's',
+		maxItemsToShow: 0,
+		minChars: 0,
+		mustMatch: false,
+		filterResults: false,
+		cellSeparator: null,
+	});
+}
+
+function setAutoComplete2()
+{
+	var c = $(this).data('counter');
+	$('[name="optval_' + c + '"]').each(function()
+	{
+		setAutoComplete.call(this);
+	});
+}
+
+$(document).ready(function()
+{
+	$('input[type="text"]').each(setAutoComplete);
+	$('input[type="text"].option_key').blur(setAutoComplete2);
+});
 </script>

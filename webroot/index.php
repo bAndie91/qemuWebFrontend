@@ -35,6 +35,7 @@ if(isset($_SESSION["redirect_msg"]))
 	unset($_SESSION["redirect_msg"]);
 }
 $is_xhr = (strtolower(@$_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest');
+if($is_xhr) $ExpectedContentType = "json";
 
 
 /* ================================================================================ */
@@ -335,21 +336,32 @@ case "event":
 			$cmds = array();
 			foreach($_REQUEST["param"]["keys"] as $event)
 			{
-				if(isset($event["keyName"]))
+				if(isset($event["keyName"]) and preg_match('/^[a-z0-9_]+$/', $event["keyName"]))
 				{
 					$keySeq = $event["keyName"];
 				}
 				else
 				{
 					$keyCode = $event["keyCode"];
-					if(isset($ini["keys"][$keyCode])) $keySeq = $ini["keys"][$keyCode];
-					elseif(is_alnum($keyCode)) $keySeq = chr($keyCode);
+					if(isset($ini["keys"][$keyCode]))
+					{
+						$keySeq = $ini["keys"][$keyCode];
+					}
+					elseif(is_alnum($keyCode))
+					{
+						$keySeq = chr($keyCode);
+						if(preg_match('/[A-Z]/', $keySeq))
+						{
+							$keySeq = strtolower($keySeq);
+							$event["shift"] = true;
+						}
+					}
 				}
 				if(isset($keySeq))
 				{
-					foreach(array("ctrl", "alt", "shift") as $mod)
+					foreach(array("alt", "alt_r", "altgr", "altgr_r", "ctrl", "ctrl_r", "shift", "shift_r") as $mod)
 					{
-						if(@$event[$mod."Key"] == "true") $keySeq = "$mod-$keySeq";
+						if(@$event[$mod]) $keySeq = "$mod-$keySeq";
 					}
 					$cmds[] = "sendkey $keySeq";
 				}
@@ -419,6 +431,37 @@ case "get":
 		add_error("invalid name");
 	}
 break;
+case "autocomplete":
+	$ExpectedContentType = "lines";
+	$Pattern = $_REQUEST["s"];
+	$REprepend = '';
+	$REappend = '';
+	if(preg_match('/^\^/', $Pattern))
+	{
+		$Pattern = substr($Pattern, 1);
+		$REprepend = '^';
+	}
+	if(preg_match('/\$$/', $Pattern))
+	{
+		$Pattern = substr($Pattern, 0, strlen($Pattern)-1);
+		$REappend = '$';
+	}
+	$RE = $REprepend . str_replace('\*', '.*?', preg_quote($Pattern, '/')) . $REappend;
+		
+	if($_REQUEST["type"] == "option")
+	{
+		foreach(array_keys($ini["option_type"]) as $str)
+		{
+			if(preg_match("/$RE/", $str)) $lines[] = $str;
+		}
+	}
+	else
+	{
+		$expr = $ini["option_type"][$_REQUEST["option"]];
+		$lines[] = $expr;
+	}
+	$tmplvar["lines"] = $lines;
+break;
 default:
 	if($is_xhr)
 	{
@@ -435,15 +478,19 @@ default:
 
 /* ================================================================================ */
 
-if($is_xhr)
+switch($ExpectedContentType)
 {
+case "json":
 	$tmplvar["error"] = $GLOBALS["error"];
 	if(isset($Redirect)) $tmplvar["redirect"] = $Redirect;
 	// TODO // $tmplvar["result"] = ;
 	echo json_encode($tmplvar);
-}
-else
-{
+break;
+case "lines":
+	header("Content-Type: text/plain");
+	echo implode("\n", $tmplvar["lines"]);
+break;
+default:
 	if(isset($Redirect))
 	{
 		header("Location: ".$_SERVER["SCRIPT_NAME"]."?act=".$Redirect["act"].(isset($Redirect["name"])?("&name=".$Redirect["name"]):""));

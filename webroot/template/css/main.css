@@ -1,3 +1,4 @@
+
 #qemu_edit .option_key
 {
 	width: 75px;
@@ -7,7 +8,8 @@
 	width: 250px;
 }
 
-#qemu_list .vm_name
+#qemu_list .vm_name,
+#qemu_list .vm_state
 {
 	display: inline-block;
 	width: 100px;
@@ -18,28 +20,36 @@
 	clear: both;
 }
 
-#notepad
+
+#keyboard
+{
+	border-collapse: collapse;
+}
+#keyboard textarea
 {
 	width: 250px;
-	height: 64px;
+	height: 100px;
 }
-
-#keyboard input[type=button],
-#keyboard td
+#keyboard input[type=button]
 {
 	width: 25px;
 	height: 25px;
 	padding: 0;
+	font-size: 8pt;
 }
-
-#keyboard input[type=button].wide
+#keyboard input[type=button].symbol
 {
-	width: 50px;
+	font-size: 12pt;
 }
-
-#keyboard input[type=button].high
+#keyboard td
 {
-	height: 50px;
+	padding: 0;
 }
-
+#keyboard td[colspan="2"] input[type=button]	{ width:  50px; }
+#keyboard td[colspan="6"] input[type=button]	{ width:  150px; }
+#keyboard td[rowspan="2"] input[type=button]	{ height:  50px; }
+#keyboard input[type=button].hold
+{
+	border-style: inset;
+}
 

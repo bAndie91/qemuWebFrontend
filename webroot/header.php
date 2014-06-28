@@ -7,7 +7,7 @@ require_once("func.qemu.php");
 require_once("raintpl/rain.tpl.class.php");
 
 
-$ini = parse_ini_file("config.ini", true);
+$ini = parse_ini_file("config.ini", true, INI_SCANNER_RAW);
 
 if(!preg_match('/\/$/', $ini["qemu"]["raintpl_cache_dir"]))
 {

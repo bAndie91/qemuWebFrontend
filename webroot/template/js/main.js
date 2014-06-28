@@ -87,53 +87,55 @@ qemu = {
 	},
 	refresh_state: function(vmobj, element)
 	{
+		element.progress_indicator.show();
+		
 		this.call({
 			act: 'get',
 			name: vmobj.name,
 		},
-		{
-			element: element,
-		},
-		function(responseText, textStatus, xhr, json, a)
+		element,
+		function(responseText, textStatus, xhr, json, element)
 		{
 			// for(var prop in vmobj) delete(vmobj[prop]);
 			for(var prop in json.vm) vmobj[prop] = json.vm[prop];
 			
 			if(json.vm.state.running)
 			{
-				a.element.state_on.show();
-				a.element.state_off.hide();
+				element.state_on.show();
+				element.state_off.hide();
 
-				a.element.enable_on.enable();
-				a.element.enable_off.disable();
+				element.enable_on.enable();
+				element.enable_off.disable();
 				
 				if(json.vm.state.paused)
 				{
-					a.element.state_paused.show();
-					a.element.state_unpaused.hide();
+					element.state_paused.show();
+					element.state_unpaused.hide();
 
-					a.element.enable_paused.enable();
-					a.element.enable_unpaused.disable();
+					element.enable_paused.enable();
+					element.enable_unpaused.disable();
 				}
 				else
 				{
-					a.element.state_paused.hide();
-					a.element.state_unpaused.show();
+					element.state_paused.hide();
+					element.state_unpaused.show();
 
-					a.element.enable_paused.disable();
-					a.element.enable_unpaused.enable();
+					element.enable_paused.disable();
+					element.enable_unpaused.enable();
 				}
 			}
 			else
 			{
-				a.element.state_on.hide();
-				a.element.state_off.show();
-				a.element.state_paused.hide();
-				a.element.state_unpaused.hide();
+				element.state_on.hide();
+				element.state_off.show();
+				element.state_paused.hide();
+				element.state_unpaused.hide();
 				
-				a.element.enable_on.disable();
-				a.element.enable_off.enable();
+				element.enable_on.disable();
+				element.enable_off.enable();
 			}
+			
+			element.progress_indicator.hide();
 		});
 	}
 }
