@@ -1,13 +1,13 @@
 <div id=qemu_edit>
 <form method=POST>
 	<input type=hidden name=act value="{$act}" />
-	{if="$act==edit"}
+	{if="$act=='edit'"}
 	<input type=hidden name=name value="{$vm.name}" />
 	{/if}
 	<table id=options>
 	<tr>
 		<td>Name</td>
-		<td>{if="$act==edit"}{$vm.name}{else}<input type=text name=name value="{$vm.name}" />{/if}</td>
+		<td>{if="$act=='edit'"}{$vm.name}{else}<input type=text name=name value="{$vm.name}" />{/if}</td>
 	</tr>
 	<tr>
 		<td colspan=2>Options</td>
@@ -53,11 +53,11 @@ function addOption()
 	row.append(cell2);
 	$('table#options').append(row);
 	
-	setAutoComplete.call(cell1);
-	$(cell1).blur(setAutoComplete2);
+	setupAutoCompleter.call(input1);
+	$(input1).blur(setupAutoCompleter2);
 }
 
-function setAutoComplete()
+function setupAutoCompleter()
 {
 	var a = '';
 	if($(this).is('.option_key'))
@@ -77,6 +77,7 @@ function setAutoComplete()
 	{
 		$(this).autocomplete({
 			url: url,
+			remoteDataType: 'json',
 			delay: 800,
 			queryParamName: 's',
 			maxItemsToShow: 0,
@@ -88,6 +89,7 @@ function setAutoComplete()
 			delimiterKeyCode: 0,
 			preventDefaultTab: true,
 			sortResults: false,
+			onItemSelect: acSetItem,
 		});
 	}
 	else
@@ -96,18 +98,26 @@ function setAutoComplete()
 	}
 }
 
-function setAutoComplete2()
+function setupAutoCompleter2()
 {
 	var c = $(this).data('counter');
 	$('[name="optval_' + c + '"]').each(function()
 	{
-		setAutoComplete.call(this);
+		setupAutoCompleter.call(this);
 	});
+}
+
+function acSetItem(item, ac)
+{
+	if(item.data.raw_value != undefined)
+	{
+		ac.setValue(item.data.raw_value);
+	}
 }
 
 $(document).ready(function()
 {
-	$('input[type="text"]').each(setAutoComplete);
-	$('input[type="text"].option_key').blur(setAutoComplete2);
+	$('input[type="text"]').each(setupAutoCompleter);
+	$('input[type="text"].option_key').blur(setupAutoCompleter2);
 });
 </script>

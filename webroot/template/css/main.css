@@ -5,7 +5,7 @@
 }
 #qemu_edit .option_val
 {
-	width: 250px;
+	width: 500px;
 }
 
 #qemu_list .vm_name,

@@ -432,7 +432,7 @@ case "get":
 	}
 break;
 case "autocomplete":
-	$ExpectedContentType = "lines";
+	$ExpectedContentType = "autocompleter";
 	$Pattern = $_REQUEST["s"];
 	$REprepend = '';
 	$REappend = '';
@@ -452,7 +452,7 @@ case "autocomplete":
 	{
 		foreach(array_keys($ini["option_type"]) as $str)
 		{
-			if(preg_match("/$RE/", $str)) $lines[] = $str;
+			if(preg_match("/$RE/", $str)) $tmplvar["lines"][] = $str;
 		}
 	}
 	else
@@ -482,15 +482,23 @@ case "autocomplete":
 		}
 		while($unresolved);
 
-		$lines[] = "<span class='option_prototype'>$Expr</span>";
+		if(!empty($Expr))
+		{
+			$lines[] = array(
+				'value' => "<span class='option_prototype'>$Expr</span>",
+				'data' => array(
+					"raw_value" => $Expr
+				),
+			);
+		}
 
 		$psubs = explode(',', $Pattern);
-		foreach($alterns as $tmp)
+		foreach($alterns as $expr_line)
 		{
-			$add_lines = array();
+			$add_lines = array(array());
 			$trailing_comma = array();
 			
-			$lsubs = explode(',', $tmp);
+			$lsubs = explode(',', $expr_line);
 			foreach($lsubs as $n => $lsub)
 			{
 				$psub = @$psubs[$n];
@@ -565,14 +573,31 @@ case "autocomplete":
 			autocomplete_add_lines:
 			foreach($add_lines as $n => $add_line)
 			{
-				$lines[] = implode(',', $add_line) . ($trailing_comma[$n] ? "," : "");
+				$str = implode(',', $add_line) . (@$trailing_comma[$n] ? "," : "");
+				/*
+				$lines[] = array(
+					'value' => $str,
+					'data' => $str,
+				);
+				*/
+				$lines[] = $str;
 			}
 		}
 		
-		$lines = array_unique($lines);
+		$unique_values = array();
+		$lines_unique = array();
+		foreach($lines as $n => $line)
+		{
+			if(is_array($line)) $value = $line['value'];
+			else $value = $line;
+			
+			if(in_array($value, $unique_values)) continue;
+			$unique_values[] = $value;
+			$lines_unique[] = $line;
+		}
+
+		$tmplvar["lines"] = $lines_unique;
 	}
-	
-	$tmplvar["lines"] = $lines;
 break;
 default:
 	if($is_xhr)
@@ -600,7 +625,10 @@ case "json":
 break;
 case "lines":
 	header("Content-Type: text/plain");
-	echo implode("\n", array_map(function($s){ return rawurlencode($s); }, $tmplvar["lines"]));
+	echo implode("\n", array_map(function($a){ return rawurlencode(is_array($a) ? $a['value'] : $a); }, $tmplvar["lines"]));
+break;
+case "autocompleter":
+	echo json_encode($tmplvar["lines"]);
 break;
 default:
 	if(isset($Redirect))

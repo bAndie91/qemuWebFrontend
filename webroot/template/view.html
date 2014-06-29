@@ -5,9 +5,7 @@ State:
 	<span class="vmstate_on" style="display: none;">ON</span>
 	<span class="vmstate_off" style="display: none;">OFF</span>
 	</b>
-	<input type=button id=btn_refresh value="Refresh" />
-	<span id="refresh_progress" style="display: none;">dispatching...</span>
-<br/>
+
 	<span class="vmstate_off" style="display: none;">
 		<input type=button onClick="qemu.act('start', {}, '{$vm.name}'); refresh_state();" value="start" />
 	</span>
@@ -25,11 +23,14 @@ State:
 	<a href="?act=new&copy={$vm.name}">copy</a>
 	<a href="?act=edit&name={$vm.name}">edit</a>
 	<a href="?act=view&name={$vm.name}">view</a>
+	<br/>
+	
+	<input type=button id=btn_refresh value="Refresh" />
+	<span id="refresh_progress" style="display: none;">dispatching...</span>
 <br/>
 
 <div id=preview>
-	<h3>Preview</h3>
-	Time: <span id=screenshot_time>{$vm.screenshot.timestr}</span>
+	<i>Screenshot Time:</i> <span id=screenshot_time>{$vm.screenshot.timestr}</span>
 	
 	<div>
 	{if="isset($vm.screenshot.url)"}
@@ -102,6 +103,7 @@ function specKey(name)
 		if(document.modKeys[mk]) a[mk] = 1;
 	}
 	keyEvent(a);
+	$('#notepad').focus();
 }
 
 function modKey(name, button)
@@ -116,6 +118,7 @@ function modKey(name, button)
 		document.modKeys[name] = true;
 		$(button).addClass('hold');
 	}
+	$('#notepad').focus();
 }
 
 $(document).ready(function()
@@ -137,7 +140,6 @@ $(document).ready(function()
 			var p = mk + 'Key';
 			if(event[p] || document.modKeys[mk]) a[mk] = 1;
 		}
-		
 		keyEvent(a);
 		
 		if(event.keyCode == 27) this.value = '';
