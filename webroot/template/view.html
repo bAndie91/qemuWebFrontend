@@ -144,8 +144,13 @@ $(document).ready(function()
 		if((event.keyCode >= 0x30 && event.keyCode <= 0x39) || 
 		   (event.keyCode >= 0x41 && event.keyCode <= 0x5A) || 
 		   (event.keyCode >= 0x61 && event.keyCode <= 0x7A) || 
-		   event.keyCode == 8 || event.keyCode == 13) return true;
+		   event.keyCode == 0x20 ||
+		   event.keyCode == 0x08 || event.keyCode == 0x0D) return true;
 		return false;
+	});
+	$('#notepad').focus(function()
+	{
+		this.value = '';
 	});
 });
 

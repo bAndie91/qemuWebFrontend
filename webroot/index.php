@@ -448,7 +448,7 @@ case "autocomplete":
 	}
 	$RE = $REprepend . str_replace('\*', '.*?', preg_quote($Pattern, '/')) . $REappend;
 		
-	if($_REQUEST["type"] == "option")
+	if(@$_REQUEST["type"] == "option")
 	{
 		foreach(array_keys($ini["option_type"]) as $str)
 		{
@@ -457,9 +457,121 @@ case "autocomplete":
 	}
 	else
 	{
-		$expr = $ini["option_type"][$_REQUEST["option"]];
-		$lines[] = $expr;
+		$lines = array();
+		$Expr = $ini["option_type"][$_REQUEST["option"]];
+		$alterns = (array)$Expr;
+		do {
+			$unresolved = false;
+			$new = array();
+			foreach($alterns as $n => $tmp)
+			{
+				if(preg_match('/^(.*?)\{([^\{\}]*)\}(.*)/', $tmp, $grp))
+				{
+					$unresolved = true;
+					foreach(explode('|', $grp[2]) as $w)
+					{
+						$new[] = $grp[1].$w.$grp[3];
+					}
+				}
+				else
+				{
+					$new[] = $tmp;
+				}
+			}
+			$alterns = $new;
+		}
+		while($unresolved);
+
+		$lines[] = "<span class='option_prototype'>$Expr</span>";
+
+		$psubs = explode(',', $Pattern);
+		foreach($alterns as $tmp)
+		{
+			$add_lines = array();
+			$trailing_comma = array();
+			
+			$lsubs = explode(',', $tmp);
+			foreach($lsubs as $n => $lsub)
+			{
+				$psub = @$psubs[$n];
+				if($n+1 < count($psubs))
+				{
+					$lsub_re = preg_quote($lsub, '/');
+					$lsub_re = preg_replace_callback(
+						'/%(\d*)([xsdfp])/',
+						function($grp)
+						{
+							if($grp[2] == 'x')	return '[[:xdigit:]]{'.$grp[1].'}';
+							elseif($grp[2] == 'd')	return '[0-9]+';
+							else /* s,f,p */	return '.+';
+						},
+						$lsub_re);
+					$lsub_re = preg_replace_callback(
+						'/\\\\\[(.*?)\\\\\]/', /* square brackets are escaped earlier */
+						function($grp)
+						{
+							return '['.$grp[1].']+';
+						},
+						$lsub_re);
+					if(preg_match("/^$lsub_re$/", $psub))
+					{
+						$add_lines[0][] = $psub;
+					}
+					else
+					{
+						continue(2);
+					}
+				}
+				elseif($n+1 == count($psubs))
+				{
+					/* file and path name completion */
+					if(preg_match('/^(.*?)%([fp])/', $lsub, $grp))
+					{
+						$str1 = substr($lsub, 0, strlen($grp[1]));
+						$given = substr($psub, strlen($grp[1]));
+						$absolute = (substr($given, 0, 1) == '/');
+						if(!$absolute)
+						{
+							$pwd = getcwd();
+							$chdir_ok = chdir($ini['qemu']["machine_dir"]."/$vmname/");
+						}
+						$glob_flags = GLOB_MARK;
+						if($grp[2] == 'p') $glob_flags |= GLOB_ONLYDIR;
+						$glob = glob($given.'*', $glob_flags);
+						if(!$absolute and $chdir_ok)
+						{
+							chdir($pwd);
+						}
+						
+						$current_line = $add_lines[0];
+						foreach($glob as $n => $path1)
+						{
+							$add_lines[$n] = $current_line;
+							$add_lines[$n][] = $str1.$path1;
+						}
+					}
+					else
+					{
+						$add_lines[0][] = $lsub;
+					}
+				}
+				else
+				{
+					$trailing_comma[$n] = true;
+					goto autocomplete_add_lines;
+				}
+			}
+			
+			autocomplete_add_lines:
+			foreach($add_lines as $n => $add_line)
+			{
+				$lines[] = implode(',', $add_line) . ($trailing_comma[$n] ? "," : "");
+			}
+		}
+		
+		$lines = array_unique($lines);
 	}
+	
 	$tmplvar["lines"] = $lines;
 break;
 default:
@@ -488,7 +600,7 @@ case "json":
 break;
 case "lines":
 	header("Content-Type: text/plain");
-	echo implode("\n", $tmplvar["lines"]);
+	echo implode("\n", array_map(function($s){ return rawurlencode($s); }, $tmplvar["lines"]));
 break;
 default:
 	if(isset($Redirect))
