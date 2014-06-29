@@ -61,3 +61,17 @@
 }
 
 
+.ac_path
+{
+	font-weight: bold;
+}
+.ac_nonliteral
+{
+	color: blue;
+}
+.ac_wildcard
+{
+	color: violet;
+}
+
+

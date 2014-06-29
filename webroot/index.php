@@ -509,21 +509,37 @@ case "autocomplete":
 						'/%(\d*)([xsdfp])/',
 						function($grp)
 						{
-							if($grp[2] == 'x')	return '[[:xdigit:]]{'.$grp[1].'}';
-							elseif($grp[2] == 'd')	return '[0-9]+';
-							else /* s,f,p */	return '.+';
+							if($grp[2] == 'x')	return ')([[:xdigit:]]{'.$grp[1].'})(';
+							elseif($grp[2] == 'd')	return ')([0-9]+)(';
+							else /* s,f,p */	return ')(.+)(';
 						},
 						$lsub_re);
 					$lsub_re = preg_replace_callback(
 						'/\\\\\[(.*?)\\\\\]/', /* square brackets are escaped earlier */
 						function($grp)
 						{
-							return '['.$grp[1].']+';
+							return ')(['.$grp[1].']+)(';
 						},
 						$lsub_re);
+					$lsub_re = "($lsub_re)";
+					
 					if(preg_match("/^$lsub_re$/", $psub))
 					{
-						$add_lines[0][] = $psub;
+						$label = preg_replace_callback(
+							"/^$lsub_re$/",
+							function($grp)
+							{
+								unset($grp[0]);
+								foreach($grp as $n => &$g)
+								{
+									/* a non-literal string component (even empty) follows a literal and so on */
+									if($n % 2 == 0) $g = "<span class=\"ac_nonliteral\">".$g."</span>";
+								}
+								return implode('', $grp);
+							},
+							$psub);
+						$add_lines[0]['label'][] = $label;
+						$add_lines[0]['value'][] = $psub;
 					}
 					else
 					{
@@ -555,12 +571,20 @@ case "autocomplete":
 						foreach($glob as $n => $path1)
 						{
 							$add_lines[$n] = $current_line;
-							$add_lines[$n][] = $str1.$path1;
+							$add_lines[$n]['label'][] = $str1."<span class=\"ac_path\">".$path1."</span>";
+							$add_lines[$n]['value'][] = $str1.$path1;
 						}
 					}
 					else
 					{
-						$add_lines[0][] = $lsub;
+						$add_lines[0]['label'][] = preg_replace_callback(
+							'/(%\d*[a-z]|\[[^\[\]]+\])/i',
+							function($grp)
+							{
+								return "<span class=\"ac_wildcard\">".$grp[1]."</span>";
+							},
+							$lsub);
+						$add_lines[0]['value'][] = $lsub;
 					}
 				}
 				else
@@ -573,14 +597,12 @@ case "autocomplete":
 			autocomplete_add_lines:
 			foreach($add_lines as $n => $add_line)
 			{
-				$str = implode(',', $add_line) . (@$trailing_comma[$n] ? "," : "");
-				/*
 				$lines[] = array(
-					'value' => $str,
-					'data' => $str,
+					'value' => implode(',', $add_line['label']) . (@$trailing_comma[$n] ? "," : ""),
+					'data'  => array(
+						'raw_value' => implode(',', $add_line['value']) . (@$trailing_comma[$n] ? "," : ""),
+					),
 				);
-				*/
-				$lines[] = $str;
 			}
 		}
 		
