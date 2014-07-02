@@ -447,13 +447,15 @@ function qemu_human_cmd($ini, $prm, $cmds, $delay = array())
 /*
     Returns filename, mtime of the given screenshot, or the latest one if $shid omitted
 */
-function qemu_load_screenshot($ini, $prm, $shid = NULL)
+function qemu_load_screenshot($ini, $prm, $shid = NULL, $subdir = NULL)
 {
 	$vmname = $prm['machine']["name"];
 	$path = $ini["qemu"]["machine_dir"]."/$vmname/screenshot";
+	if(isset($subdir)) $path .= "/$subdir";
 	if(isset($shid))
 	{
 		$filename = $ini["qemu"]["screenshot_prefix"].$shid.$ini["qemu"]["screenshot_suffix"].".".$ini["qemu"]["screenshot_ext"];
+		$filepath = "$path/$filename";
 	}
 	else
 	{
@@ -464,9 +466,11 @@ function qemu_load_screenshot($ini, $prm, $shid = NULL)
 			$s2 = stat($f2);
 			return $s2['mtime'] - $s1['mtime'];
 		});
-		$filename = @$glob[0];
+		$filepath = @$glob[0];
+		$pathinfo = pathinfo($filepath);
+		preg_match('/^'.preg_quote($ini["qemu"]["screenshot_prefix"], '/').'(.*?)'.preg_quote($ini["qemu"]["screenshot_suffix"], '/').'\.'.preg_quote($ini["qemu"]["screenshot_ext"], '/').'$/', $pathinfo['basename'], $grp);
+		$shid = $grp[1];
 	}
-	$filepath = "$path/$filename";
 	
 	if(is_file($filepath))
 	{
@@ -481,17 +485,16 @@ function qemu_load_screenshot($ini, $prm, $shid = NULL)
 			"height" => $height,
 		);
 	}
-	else
-	{
-		return array();
-	}
+	else return false;
 }
 
 function qemu_refresh_screenshot($ini, $prm, $prev_shid = NULL)
 {
+	$return = false;
 	$vmname = $prm['machine']["name"];
 	$path = $ini["qemu"]["machine_dir"]."/$vmname/screenshot";
 	if(!is_dir($path)) mkdir($path);
+	
 	$shid = str_replace(".", "-", microtime(true));
 	$basename = $ini["qemu"]["screenshot_prefix"].$shid.$ini["qemu"]["screenshot_suffix"];
 	$dumppath = "$path/$basename.ppm";
@@ -510,7 +513,6 @@ function qemu_refresh_screenshot($ini, $prm, $prev_shid = NULL)
 	$cmd = execve("convert", array($dumppath, $filepath));
 	if($cmd["code"] == 0)
 	{
-		unlink($dumppath);
 		list($width, $height) = getimagesize($filepath);
 
 		if(isset($prev_shid))
@@ -522,14 +524,19 @@ function qemu_refresh_screenshot($ini, $prm, $prev_shid = NULL)
 				if($prev_width == $width and $prev_height == $height)
 				{
 					$diff_shid = $shid."_".$prev_shid;
-					$diff = $path."/".$ini["qemu"]["screenshot_prefix"].$diff_shid.$ini["qemu"]["screenshot_suffix"].".".$ini["qemu"]["screenshot_ext"];
+					$diff = $path."/diff/".$ini["qemu"]["screenshot_prefix"].$diff_shid.$ini["qemu"]["screenshot_suffix"].".".$ini["qemu"]["screenshot_ext"];
 					$ok = img_compare($prev_sh['file'], $filepath, $diff);
 					if(!$ok)
 					{
 						@unlink($diff);
 						unset($diff);
+						add_error("comparasion failed");
 					}
 				}
+			}
+			else
+			{
+				add_error("previous screenshot could not be loaded");
 			}
 		}
 		
@@ -553,13 +560,13 @@ function qemu_refresh_screenshot($ini, $prm, $prev_shid = NULL)
 				"size" => $stat['size'],
 			);
 		}
-		
-		return $return;
 	}
 	else
 	{
+		@unlink($filepath);
 		add_error("convert failed, ".$cmd["stderr"]);
 	}
-	return false;
+	unlink($dumppath);
+	return $return;
 }
 

@@ -42,7 +42,7 @@ qemu = {
 		);
 	},
 	
-	screenshot: function(vmobj, element)
+	refresh_screenshot: function(vmobj, element)
 	{
 		var vmname = vmobj.name;
 		
@@ -62,20 +62,33 @@ qemu = {
 			}
 			else
 			{
+				qemu.set_screenshot(vmobj, a.element, json);
+			}
+		},
+		function(xhr, a)
+		{
+			a.element.show.hide();
+			a.element.hide.show();
+			alert("screenshot failed");
+		});
+	},
+	
+	set_screenshot: function(vmobj, element, json)
+	{
 				if(json.vm.screenshot.timestr != undefined)
 				{
-					a.element.time.text(json.vm.screenshot.timestr);
+					element.screenshot.time.text(json.vm.screenshot.timestr);
 				}
 				else
 				{
-					a.element.time.text(json.vm.screenshot.time);
+					element.screenshot.time.text(json.vm.screenshot.time);
 				}
 
-				a.element.img.load(function()
+				element.screenshot.img.load(function()
 				{
 					vmobj.screenshot = json.vm.screenshot;
 				});
-				var img0 = a.element.img[0];
+				var img0 = element.screenshot.img[0];
 				
 				if(json.vm.screenshot.difference != undefined && 
 				   json.vm.screenshot.difference.size < json.vm.screenshot.size)
@@ -128,23 +141,15 @@ qemu = {
 						diff_img.remove();
 					});
 					
-					diff_img.attr('src', 'index.php?act=download_screenshot&name=' + vmname + '&id=' + json.vm.screenshot.difference.id);
+					diff_img.attr('src', '?act=download_screenshot&name=' + json.vm.name + '&is_diff=1&id=' + json.vm.screenshot.difference.id);
 				}
 				else
 				{
-					a.element.img.attr('src', 'index.php?act=download_screenshot&name=' + vmname + '&id=' + json.vm.screenshot.id);
+					element.screenshot.img.attr('src', '?act=download_screenshot&name=' + json.vm.name + '&id=' + json.vm.screenshot.id);
 				}
 				
-				a.element.show.show();
-				a.element.hide.hide();
-			}
-		},
-		function(xhr, a)
-		{
-			a.element.show.hide();
-			a.element.hide.show();
-			alert("screenshot failed");
-		});
+				element.screenshot.show.show();
+				element.screenshot.hide.hide();
 	},
 	
 	act: function(act, param, vmname)
@@ -164,58 +169,69 @@ qemu = {
 		});
 	},
 	
-	refresh_state: function(vmobj, element)
+	refresh_state: function(vmobj, element, param)
 	{
 		element.progress_indicator.show();
 		
-		this.call({
+		var post = {
 			act: 'get',
 			name: vmobj.name,
-		},
-		element,
-		function(responseText, textStatus, xhr, json, element)
+		};
+		if(param && param.refresh_screenshot)
 		{
-			// for(var prop in vmobj) delete(vmobj[prop]);
-			for(var prop in json.vm) vmobj[prop] = json.vm[prop];
-			
-			if(json.vm.state.running)
+			post.refresh_screenshot_if_running = true;
+			post.prev_id = (vmobj.screenshot && vmobj.screenshot.id ? vmobj.screenshot.id : '');
+		}
+		
+		this.call(
+			post,
+			element,
+			function(responseText, textStatus, xhr, json, element)
 			{
-				element.state_on.show();
-				element.state_off.hide();
-
-				element.enable_on.enable();
-				element.enable_off.disable();
+				// for(var prop in vmobj) delete(vmobj[prop]);
+				for(var prop in json.vm) vmobj[prop] = json.vm[prop];
 				
-				if(json.vm.state.paused)
+				if(json.vm.state.running)
 				{
-					element.state_paused.show();
-					element.state_unpaused.hide();
-
-					element.enable_paused.enable();
-					element.enable_unpaused.disable();
+					element.state_on.show();
+					element.state_off.hide();
+	
+					element.enable_on.enable();
+					element.enable_off.disable();
+					
+					if(json.vm.state.paused)
+					{
+						element.state_paused.show();
+						element.state_unpaused.hide();
+	
+						element.enable_paused.enable();
+						element.enable_unpaused.disable();
+					}
+					else
+					{
+						element.state_paused.hide();
+						element.state_unpaused.show();
+	
+						element.enable_paused.disable();
+						element.enable_unpaused.enable();
+					}
 				}
 				else
 				{
+					element.state_on.hide();
+					element.state_off.show();
 					element.state_paused.hide();
-					element.state_unpaused.show();
-
-					element.enable_paused.disable();
-					element.enable_unpaused.enable();
+					element.state_unpaused.hide();
+					
+					element.enable_on.disable();
+					element.enable_off.enable();
 				}
+	
+				qemu.set_screenshot(vmobj, element, json);
+	
+				element.progress_indicator.hide();
 			}
-			else
-			{
-				element.state_on.hide();
-				element.state_off.show();
-				element.state_paused.hide();
-				element.state_unpaused.hide();
-				
-				element.enable_on.disable();
-				element.enable_off.enable();
-			}
-			
-			element.progress_indicator.hide();
-		});
+		);
 	}
 }
 

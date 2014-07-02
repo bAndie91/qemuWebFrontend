@@ -16,16 +16,16 @@ State:
 		<input type=button onClick="qemu.act('pause', {}, '{$vm.name}'); refresh_state();" value="pause" />
 	</span>
 	<span class="vmstate_on" style="display: none;">
-		<input type=button onClick="qemu.act('shutdown', {}, '{$vm.name}');" value="shutdown" />
+		<input type=button onClick="qemu.act('shutdown', {}, '{$vm.name}'); refresh_state();" value="shutdown" />
 		<input type=button onClick="qemu.act('poweroff', {}, '{$vm.name}'); refresh_state();" value="poweroff" />
-		<input type=button onClick="qemu.act('reset', {}, '{$vm.name}');" value="reset" />
+		<input type=button onClick="qemu.act('reset', {}, '{$vm.name}'); refresh_state();" value="reset" />
 	</span>
 	<a href="?act=new&copy={$vm.name}">copy</a>
 	<a href="?act=edit&name={$vm.name}">edit</a>
 	<a href="?act=view&name={$vm.name}">view</a>
 	<br/>
 	
-	<input type=button id=btn_refresh value="Refresh" />
+	<input type=button id=btn_refresh value="Refresh" onClick="refresh_state({refresh_screenshot: true});" />
 	<span id="refresh_progress" style="display: none;">dispatching...</span>
 <br/>
 
@@ -66,12 +66,15 @@ function refresh_state(param)
 		enable_off: $(null),
 		enable_paused: $(null),
 		enable_unpaused: $('#notepad, #keyboard input'),
-	});
-	
-	if(param && param.refresh_screenshot && document.qemuvm.state.running)
-	{
-		qemu.screenshot(document.qemuvm, {img: $('#screenshot'), show: $('#screenshot'), hide: $('#no_screenshot'), time: $('#screenshot_time')});
-	}
+		
+		screenshot: {
+			img: $('#screenshot'), 
+			show: $('#screenshot'), 
+			hide: $('#no_screenshot'), 
+			time: $('#screenshot_time'),
+		},
+	},
+	param);
 }
 
 function sendKeys()
@@ -79,7 +82,7 @@ function sendKeys()
 	qemu.act("event", {event: "key", keys: document.keyBuffer}, '{$vm.name}');
 	document.keyBuffer = [];
 	$('#buffer_length').text(0);
-	qemu.screenshot(document.qemuvm, {img: $('#screenshot'), show: $('#screenshot'), hide: $('#no_screenshot'), time: $('#screenshot_time')});
+	refresh_screenshot();
 }
 
 function keyEvent(event)
@@ -119,16 +122,19 @@ function modKey(name, button)
 	$('#notepad').focus();
 }
 
+function refresh_screenshot()
+{
+	qemu.refresh_screenshot(document.qemuvm, {screenshot: {img: $('#screenshot'), show: $('#screenshot'), hide: $('#no_screenshot'), time: $('#screenshot_time')}});
+}
+
 $(document).ready(function()
 {
-	$('#btn_refresh').click(function(){ refresh_state({refresh_screenshot: true}); });
-
 	refresh_state();
 	
 	$('#screenshot').click(function(event)
 	{
 		qemu.act("event", {event: "click", pos: {x: event.offsetX, y: event.offsetY}, button: {left: true}}, '{$vm.name}');
-		qemu.screenshot(document.qemuvm, {img: $('#screenshot'), show: $('#screenshot'), hide: $('#no_screenshot'), time: $('#screenshot_time')});
+		refresh_screenshot();
 	});
 
 	$('#notepad').keypress(function(event)

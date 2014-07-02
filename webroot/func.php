@@ -136,6 +136,11 @@ function img_compare($file_a, $file_b, $file_c)
 	}
 	
 	$pathinfo = pathinfo($file_c);
+	if(!is_dir($pathinfo['dirname']))
+	{
+		mkdir_recursive($pathinfo['dirname']);
+	}
+	
 	switch(strtolower($pathinfo['extension']))
 	{
 	case "gif":
@@ -153,3 +158,18 @@ function img_compare($file_a, $file_b, $file_c)
 	
 	return $ok;
 }
+
+function mkdir_recursive($dir, $mode = NULL)
+{
+	if(!isset($mode))
+	{
+		$mode = umask() ^ 0777;
+	}
+	$pi = pathinfo($dir);
+	if(!is_dir($pi['dirname']))
+	{
+		mkdir_recursive($pi['dirname'], $mode);
+	}
+	return mkdir($dir, $mode);
+}
+

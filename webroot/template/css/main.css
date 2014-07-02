@@ -61,17 +61,21 @@
 }
 
 
-.ac_path
+.ac_path, .ac_file
+{
+	color: purple;
+}
+.ac_file
 {
 	font-weight: bold;
 }
 .ac_nonliteral
 {
-	color: blue;
+	color: darkgreen;
 }
 .ac_wildcard
 {
-	color: violet;
+	color: blue;
 }
 
 

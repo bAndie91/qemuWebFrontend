@@ -435,7 +435,7 @@ case "download_screenshot":
 		if(is_shid($_REQUEST["id"]))
 		{
 			$shid = $_REQUEST["id"];
-			$file = $ini["qemu"]["machine_dir"]."/$vmname/screenshot/".$ini["qemu"]["screenshot_prefix"].$shid.$ini["qemu"]["screenshot_suffix"].".".$ini["qemu"]["screenshot_ext"];
+			$file = $ini["qemu"]["machine_dir"]."/$vmname/screenshot/".(@$_REQUEST['is_diff']?"diff/":"").$ini["qemu"]["screenshot_prefix"].$shid.$ini["qemu"]["screenshot_suffix"].".".$ini["qemu"]["screenshot_ext"];
 			$cmd = execve("file", array("-ib", $file));
 			header("Content-Type: ".trim($cmd["stdout"]));
 			header("Content-Length: ".filesize($file));
@@ -455,7 +455,28 @@ break;
 case "get":
 	if($vmname)
 	{
-		$tmplvar["vm"] = qemu_load($ini, $vmname);
+		$prm = array(
+			"name" => $vmname,
+			"machine" => qemu_load($ini, $vmname),
+		);
+		
+		if(@$_REQUEST["refresh_screenshot_if_running"])
+		{
+			if($prm['machine']["state"]["running"])
+			{
+				if(is_shid(@$_REQUEST["prev_id"]))
+				{
+					$prev_id = $_REQUEST["prev_id"];
+				}
+				$sh = qemu_refresh_screenshot($ini, $prm, @$prev_id);
+				if($sh !== false)
+				{
+					$prm['machine']["screenshot"] = $sh;
+				}
+			}
+		}
+
+		$tmplvar["vm"] = $prm["machine"];
 	}
 	else add_error("invalid name");
 break;
@@ -600,7 +621,10 @@ case "autocomplete":
 						foreach($glob as $n => $path1)
 						{
 							$add_lines[$n] = $current_line;
-							$add_lines[$n]['label'][] = $str1."<span class=\"ac_path\">".$path1."</span>";
+							list($dirname, $basename) = array_values(pathinfo($path1));
+							if(substr($dirname, -1) != "/") $dirname .= "/";
+							if($dirname == "./") $dirname = "";
+							$add_lines[$n]['label'][] = $str1."<span class=\"ac_path\">$dirname</span><span class=\"ac_file\">$basename</span>";
 							$add_lines[$n]['value'][] = $str1.$path1;
 						}
 					}
