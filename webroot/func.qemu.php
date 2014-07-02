@@ -88,28 +88,6 @@ function qemu_load_opt($opt_dir)
 	return $return;
 }
 
-function qemu_load_screenshot($ini, $prm)
-{
-	$vmname = $prm['machine']["name"];
-	$filename = $ini["qemu"]["screenshot_prefix"].$vmname.$ini["qemu"]["screenshot_suffix"].".".$ini["qemu"]["screenshot_ext"];
-	$filepath = $ini["qemu"]["screenshot_dir"]."/$filename";
-	$url = $ini["qemu"]["screenshot_baseurl"]."/$filename";
-	
-	if(file_exists($filepath))
-	{
-		$stat = stat($filepath);
-		return array(
-			"file" => $filepath,
-			"url" => $url,
-			"timestamp" => $stat['mtime'],
-			"timestr" => strftime('%c', $stat['mtime']),
-		);
-	}
-	else
-	{
-		return array();
-	}
-}
 
 function qemu_save_opt($ini, $prm)
 {
@@ -385,7 +363,7 @@ function qemu_vmstate($ini, $prm)
 	);
 }
 
-function qemu_cmd($ini, $prm, $cmds)
+function qemu_cmd($ini, $prm, $cmds, $delay = array())
 {
 	$return = array();
 	$qmp = $ini['qemu']['machine_dir']."/".$prm['machine']["name"]."/qmp.sock";
@@ -396,8 +374,9 @@ function qemu_cmd($ini, $prm, $cmds)
 		fgets($fd); /* HELO */
 		fwrite($fd, json_encode(array("execute"=>"qmp_capabilities")));
 		fgets($fd); /* reply for qmp_capabilities */
-		foreach($cmds as $cmd)
+		foreach($cmds as $n => $cmd)
 		{
+			if(isset($delay[$n])) usleep($delay[$n] * 1000);
 			$ok = fwrite($fd, json_encode($cmd));
 			if($ok !== false)
 			{
@@ -448,7 +427,7 @@ function qemu_single_human_cmd($ini, $prm, $cmd)
 	return qemu_single_cmd($ini, $prm, "human-monitor-command", array("command-line" => $cmd));
 }
 
-function qemu_human_cmd($ini, $prm, $cmds)
+function qemu_human_cmd($ini, $prm, $cmds, $delay = array())
 {
 	return qemu_cmd($ini, $prm, array_map(
 		function($str)
@@ -460,17 +439,64 @@ function qemu_human_cmd($ini, $prm, $cmds)
 				),
 			);
 		},
-		$cmds)
+		$cmds,
+		$delay)
 	);
 }
 
-function qemu_refresh_screenshot($ini, $prm)
+/*
+    Returns filename, mtime of the given screenshot, or the latest one if $shid omitted
+*/
+function qemu_load_screenshot($ini, $prm, $shid = NULL)
 {
 	$vmname = $prm['machine']["name"];
-	$basename = $ini["qemu"]["screenshot_prefix"].$vmname.$ini["qemu"]["screenshot_suffix"];
-	$dumppath = $ini["qemu"]["screenshot_dir"]."/$basename.ppm";
+	$path = $ini["qemu"]["machine_dir"]."/$vmname/screenshot";
+	if(isset($shid))
+	{
+		$filename = $ini["qemu"]["screenshot_prefix"].$shid.$ini["qemu"]["screenshot_suffix"].".".$ini["qemu"]["screenshot_ext"];
+	}
+	else
+	{
+		$glob = glob("$path/".$ini["qemu"]["screenshot_prefix"]."*".$ini["qemu"]["screenshot_suffix"].".".$ini["qemu"]["screenshot_ext"]);
+		usort($glob, function($f1, $f2)
+		{
+			$s1 = stat($f1);
+			$s2 = stat($f2);
+			return $s2['mtime'] - $s1['mtime'];
+		});
+		$filename = @$glob[0];
+	}
+	$filepath = "$path/$filename";
+	
+	if(is_file($filepath))
+	{
+		$stat = stat($filepath);
+		list($width, $height) = getimagesize($filepath);
+		return array(
+			"file" => $filepath,
+			"id" => $shid,
+			"timestamp" => $stat['mtime'],
+			"size" => $stat['size'],
+			"width" => $width,
+			"height" => $height,
+		);
+	}
+	else
+	{
+		return array();
+	}
+}
+
+function qemu_refresh_screenshot($ini, $prm, $prev_shid = NULL)
+{
+	$vmname = $prm['machine']["name"];
+	$path = $ini["qemu"]["machine_dir"]."/$vmname/screenshot";
+	if(!is_dir($path)) mkdir($path);
+	$shid = str_replace(".", "-", microtime(true));
+	$basename = $ini["qemu"]["screenshot_prefix"].$shid.$ini["qemu"]["screenshot_suffix"];
+	$dumppath = "$path/$basename.ppm";
 	$filename = "$basename.".$ini["qemu"]["screenshot_ext"];
-	$filepath = $ini["qemu"]["screenshot_dir"]."/$filename";
+	$filepath = "$path/$filename";
 	
 	$cmd = array(
 		"execute" => "screendump",
@@ -478,26 +504,61 @@ function qemu_refresh_screenshot($ini, $prm)
 			"filename" => $dumppath,
 		),
 	);
-	
 	$reply = qemu_cmd($ini, $prm, array($cmd));
 	// TODO // error handle
-	// TODO // wait for
-	
+
 	$cmd = execve("convert", array($dumppath, $filepath));
 	if($cmd["code"] == 0)
 	{
 		unlink($dumppath);
+		list($width, $height) = getimagesize($filepath);
+
+		if(isset($prev_shid))
+		{
+			$prev_sh = qemu_load_screenshot($ini, $prm, $prev_shid);
+			if(isset($prev_sh['id']))
+			{
+				list($prev_width, $prev_height) = getimagesize($prev_sh['file']);
+				if($prev_width == $width and $prev_height == $height)
+				{
+					$diff_shid = $shid."_".$prev_shid;
+					$diff = $path."/".$ini["qemu"]["screenshot_prefix"].$diff_shid.$ini["qemu"]["screenshot_suffix"].".".$ini["qemu"]["screenshot_ext"];
+					$ok = img_compare($prev_sh['file'], $filepath, $diff);
+					if(!$ok)
+					{
+						@unlink($diff);
+						unset($diff);
+					}
+				}
+			}
+		}
+		
 		$stat = stat($filepath);
-		return array(
+		$return = array(
 			"file" => $filepath,
-			"url" => $ini["qemu"]["screenshot_baseurl"]."/$filename",
+			"id" => $shid,
 			"timestamp" => $stat['mtime'],
 			"timestr" => strftime('%c', $stat['mtime']),
+			"size" => $stat['size'],
+			"width" => $width,
+			"height" => $height,
 		);
+		if(isset($diff))
+		{
+			$stat = stat($diff);
+			$return["difference"] = array(
+				"file" => $diff,
+				"id" => $diff_shid,
+				"timestamp" => $stat['mtime'],
+				"size" => $stat['size'],
+			);
+		}
+		
+		return $return;
 	}
 	else
 	{
-		add_error("convert failed, ".print_r($cmd["stderr"], true));
+		add_error("convert failed, ".$cmd["stderr"]);
 	}
 	return false;
 }

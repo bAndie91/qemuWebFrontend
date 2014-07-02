@@ -55,3 +55,8 @@ function is_vmname($str)
 		!preg_match('/[\.-]$/', $str);
 }
 
+function is_shid($str)
+{
+	return preg_match('/^[0-9_\.-]+$/', $str);
+}
+

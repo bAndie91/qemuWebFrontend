@@ -7,7 +7,10 @@
 	<table id=options>
 	<tr>
 		<td>Name</td>
-		<td>{if="$act=='edit'"}{$vm.name}{else}<input type=text name=name value="{$vm.name}" />{/if}</td>
+		<td>
+			{if="$act=='edit'"}{$vm.name}{else}<input type=text name=name value="{$vm.name}" />{/if}
+			{if="isset($vm.name)"}<a href="?act=view&name={$vm.name}">View ...</a>{/if}
+		</td>
 	</tr>
 	<tr>
 		<td colspan=2>Options</td>

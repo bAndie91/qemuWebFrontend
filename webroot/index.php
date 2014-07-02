@@ -203,10 +203,7 @@ case "delete":
 			);
 		}
 	}
-	else
-	{
-		add_error("invalid name");
-	}
+	else add_error("invalid name");
 break;
 case "start":
 	$act_ok = false;
@@ -317,10 +314,7 @@ case "view":
 		$tmplvar["content_tmpl"] = "view";
 		$tmplvar["page"]["h1"] = "View";
 	}
-	else
-	{
-		add_error("invalid name");
-	}
+	else add_error("invalid name");
 break;
 case "event":
 	if(isset($vmname))
@@ -367,6 +361,27 @@ case "event":
 				}
 			}
 		}
+		elseif($_REQUEST["param"]["event"] == "click")
+		{
+			$x = intval($_REQUEST["param"]["pos"]["x"]);
+			$y = intval($_REQUEST["param"]["pos"]["y"]);
+			$btn = 0;
+			if(@$_REQUEST["param"]["button"]["left"])   $btn |= 1;
+			if(@$_REQUEST["param"]["button"]["middle"]) $btn |= 2;
+			if(@$_REQUEST["param"]["button"]["right"])  $btn |= 4;
+
+			$delay = array();
+			/* it hopefully moves cursor to upper left corner */
+			$delay[] = 0;
+			$cmds[] = "mouse_move -1000 -1000";
+			/* you should setup mouse in guest OS not to get accelerated (eg. "xset m 1/1 0" in X11) */
+			$delay[] = 500;
+			$cmds[] = "mouse_move $x $y";
+			$delay[] = 500;
+			$cmds[] = "mouse_button $btn";
+			$delay[] = 500;
+			$cmds[] = "mouse_button 0";
+		}
 		else
 		{
 			add_error("unknown event");
@@ -375,10 +390,7 @@ case "event":
 		if(!empty($cmds))
 		{
 			$reply = qemu_human_cmd($ini, $prm, $cmds);
-			if($reply !== false)
-			{
-			}
-			else
+			if($reply === false)
 			{
 				add_error("dispatch failed");
 			}
@@ -397,7 +409,11 @@ case "refresh_screenshot":
 		
 		if($prm['machine']["state"]["running"])
 		{
-			$sh = qemu_refresh_screenshot($ini, $prm);
+			if(is_shid(@$_REQUEST["prev_id"]))
+			{
+				$prev_id = $_REQUEST["prev_id"];
+			}
+			$sh = qemu_refresh_screenshot($ini, $prm, @$prev_id);
 			if($sh !== false)
 			{
 				$prm['machine']["screenshot"] = $sh;
@@ -410,10 +426,25 @@ case "refresh_screenshot":
 		
 		$tmplvar["vm"] = $prm['machine'];
 	}
-	else
+	else add_error("invalid name");
+break;
+case "download_screenshot":
+	$ExpectedContentType = "raw";
+	if(isset($vmname))
 	{
-		add_error("invalid name");
+		if(is_shid($_REQUEST["id"]))
+		{
+			$shid = $_REQUEST["id"];
+			$file = $ini["qemu"]["machine_dir"]."/$vmname/screenshot/".$ini["qemu"]["screenshot_prefix"].$shid.$ini["qemu"]["screenshot_suffix"].".".$ini["qemu"]["screenshot_ext"];
+			$cmd = execve("file", array("-ib", $file));
+			header("Content-Type: ".trim($cmd["stdout"]));
+			header("Content-Length: ".filesize($file));
+			readfile($file);
+			exit(0);
+		}
+		else add_error("invalid screenshot id");
 	}
+	else add_error("invalid name");
 break;
 case "list":
 	$tmplvar["content_tmpl"] = "list";
@@ -426,10 +457,7 @@ case "get":
 	{
 		$tmplvar["vm"] = qemu_load($ini, $vmname);
 	}
-	else
-	{
-		add_error("invalid name");
-	}
+	else add_error("invalid name");
 break;
 case "autocomplete":
 	$ExpectedContentType = "autocompleter";
@@ -447,6 +475,7 @@ case "autocomplete":
 		$REappend = '$';
 	}
 	$RE = $REprepend . str_replace('\*', '.*?', preg_quote($Pattern, '/')) . $REappend;
+
 		
 	if(@$_REQUEST["type"] == "option")
 	{
@@ -465,7 +494,7 @@ case "autocomplete":
 			$new = array();
 			foreach($alterns as $n => $tmp)
 			{
-				if(preg_match('/^(.*?)\{([^\{\}]*)\}(.*)/', $tmp, $grp))
+				if(preg_match('/^(.*?)\[([^\[\]]*)\](.*)/', $tmp, $grp))
 				{
 					$unresolved = true;
 					foreach(explode('|', $grp[2]) as $w)
@@ -515,7 +544,7 @@ case "autocomplete":
 						},
 						$lsub_re);
 					$lsub_re = preg_replace_callback(
-						'/\\\\\[(.*?)\\\\\]/', /* square brackets are escaped earlier */
+						'/\\\\\{(.*?)\\\\\}/', /* square brackets are escaped earlier */
 						function($grp)
 						{
 							return ')(['.$grp[1].']+)(';
@@ -578,7 +607,7 @@ case "autocomplete":
 					else
 					{
 						$add_lines[0]['label'][] = preg_replace_callback(
-							'/(%\d*[a-z]|\[[^\[\]]+\])/i',
+							'/(%\d*[a-z]|\{[^\{\}]+\})/i',
 							function($grp)
 							{
 								return "<span class=\"ac_wildcard\">".$grp[1]."</span>";
@@ -637,7 +666,7 @@ default:
 
 /* ================================================================================ */
 
-switch($ExpectedContentType)
+switch(@$ExpectedContentType)
 {
 case "json":
 	$tmplvar["error"] = $GLOBALS["error"];
@@ -651,6 +680,10 @@ case "lines":
 break;
 case "autocompleter":
 	echo json_encode($tmplvar["lines"]);
+break;
+case "raw":
+	header("Content-Type: text/plain");
+	echo implode("\n", $GLOBALS["error"]);
 break;
 default:
 	if(isset($Redirect))

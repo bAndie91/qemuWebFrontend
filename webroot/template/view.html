@@ -30,14 +30,12 @@ State:
 <br/>
 
 <div id=preview>
-	<i>Screenshot Time:</i> <span id=screenshot_time>{$vm.screenshot.timestr}</span>
+	<i>Screenshot Time:</i>
+	<span id=screenshot_time></span>
 	
 	<div>
-	{if="isset($vm.screenshot.url)"}
-		<img src="{$vm.screenshot.url}?ts={$vm.screenshot.timestamp}#" id=screenshot />
-	{else}
-		<span id=no_screenshot>no preview</span>
-	{/if}
+	<img id=screenshot />
+	<span id=no_screenshot>no preview</span>
 	</div>
 	
 	<div>
@@ -72,7 +70,7 @@ function refresh_state(param)
 	
 	if(param && param.refresh_screenshot && document.qemuvm.state.running)
 	{
-		qemu.screenshot('{$vm.name}', {img: $('#screenshot'), noimg: $('#no_screenshot'), time: $('#screenshot_time')});
+		qemu.screenshot(document.qemuvm, {img: $('#screenshot'), show: $('#screenshot'), hide: $('#no_screenshot'), time: $('#screenshot_time')});
 	}
 }
 
@@ -81,7 +79,7 @@ function sendKeys()
 	qemu.act("event", {event: "key", keys: document.keyBuffer}, '{$vm.name}');
 	document.keyBuffer = [];
 	$('#buffer_length').text(0);
-	qemu.screenshot('{$vm.name}', {img: $('#screenshot'), noimg: $('#no_screenshot'), time: $('#screenshot_time')});
+	qemu.screenshot(document.qemuvm, {img: $('#screenshot'), show: $('#screenshot'), hide: $('#no_screenshot'), time: $('#screenshot_time')});
 }
 
 function keyEvent(event)
@@ -129,7 +127,8 @@ $(document).ready(function()
 	
 	$('#screenshot').click(function(event)
 	{
-		qemu.act("event", {event: "click", x: offsetX, y: offsetY}, '{$vm.name}');
+		qemu.act("event", {event: "click", pos: {x: event.offsetX, y: event.offsetY}, button: {left: true}}, '{$vm.name}');
+		qemu.screenshot(document.qemuvm, {img: $('#screenshot'), show: $('#screenshot'), hide: $('#no_screenshot'), time: $('#screenshot_time')});
 	});
 
 	$('#notepad').keypress(function(event)
@@ -145,10 +144,15 @@ $(document).ready(function()
 		if(event.keyCode == 27) this.value = '';
 		if((event.keyCode >= 0x30 && event.keyCode <= 0x39) || 
 		   (event.keyCode >= 0x41 && event.keyCode <= 0x5A) || 
-		   (event.keyCode >= 0x61 && event.keyCode <= 0x7A) || 
+		   (event.keyCode >= 0x61 && event.keyCode <= 0x7A) ||  // >
 		   event.keyCode == 0x20 ||
-		   event.keyCode == 0x08 || event.keyCode == 0x0D) return true;
-		return false;
+		   event.keyCode == 0x08 || event.keyCode == 0x0D)
+		{
+		}
+		else
+		{
+			event.preventDefault();
+		}
 	});
 	$('#notepad').focus(function()
 	{
