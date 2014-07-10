@@ -282,29 +282,25 @@ case "view":
 			"name" => $vmname,
 			"machine" => qemu_load($ini, $vmname),
 		);
-		
-		$cmds = array();
-		if(isset($prm['machine']["vncpass"]))
-		{
-			$cmds[] = array(
-				"execute" => "change",
-				"arguments" => array(
-					"device" => "vnc",
-					"target" => "password",
-					"arg" => $prm['machine']["vncpass"],
-				),
-			);
-		}
-		$reply = qemu_cmd($ini, $prm, $cmds);
 
-		if(!file_exists(@$prm['machine']["screenshot"]["file"]))
+		if(isset($_REQUEST["getinfo"]["vnc"]))
 		{
-			if($prm['machine']["state"]["running"])
+			$prm['machine']['vnc'] = qemu_info_vnc($ini, $prm);
+		}
+		
+		if(isset($_REQUEST["getinfo"]["screenshot"]))
+		{
+			$prm['machine']["screenshot"] = qemu_load_screenshot($ini, $vmname);
+			
+			if(!file_exists(@$prm['machine']["screenshot"]["file"]))
 			{
-				$sh = qemu_refresh_screenshot($ini, $prm);
-				if($sh !== false)
+				if($prm['machine']["state"]["running"])
 				{
-					$prm['machine']["screenshot"] = $sh;
+					$sh = qemu_refresh_screenshot($ini, $prm);
+					if($sh !== false)
+					{
+						$prm['machine']["screenshot"] = $sh;
+					}
 				}
 			}
 		}
@@ -313,6 +309,61 @@ case "view":
 		
 		$tmplvar["content_tmpl"] = "view";
 		$tmplvar["page"]["h1"] = "View";
+		if(isset($_REQUEST["template"]) and is_alnum_str($_REQUEST["template"]))
+		{
+			$tmplvar["content_tmpl"] = $_REQUEST["template"];
+		}
+	}
+	else add_error("invalid name");
+break;
+case "change":
+	if(isset($vmname))
+	{
+		switch($_REQUEST["change"])
+		{
+		case "vnc":
+			$prm = array(
+				"name" => $vmname,
+				"machine" => qemu_load($ini, $vmname),
+			);
+			
+			if(isset($_REQUEST["enable"]) and strtolower($_REQUEST["enable"]) == 'on')
+			{
+				if(preg_match('/^[a-z0-9\._-]+$/i', @$_REQUEST["host"]))
+				{
+					$host = $_REQUEST["host"];
+					if(isset($_REQUEST["port"])) $display = intval($_REQUEST["port"]) - 5900;
+					if(isset($_REQUEST["display"])) $display = intval($_REQUEST["display"]);
+					if(isset($_REQUEST["password"]) and $_REQUEST["password"] != "") $password = $_REQUEST["password"];
+					if(!empty($_REQUEST["share"])) $share = preg_replace('/[^a-z0-9_-]/i', '', $_REQUEST["share"]);
+				}
+				else add_error("invalid 'host' parameter");
+			}
+			else
+			{
+				$host = "";
+			}
+			$reply = qemu_change_vnc($ini, $prm, $host, @$display, @$password, @$share);
+			$ok = true;
+			foreach($reply as $r)
+			{
+				if(isset($r['error']))
+				{
+					$ok = false;
+					add_error($r['error']['class'].": ".$r['error']['desc']);
+				}
+			}
+			if($ok)
+			{
+				$Messages[] = "VNC settings changed";
+			}
+			$prm['machine']['vnc'] = qemu_info_vnc($ini, $prm);
+
+			$tmplvar["vm"] = $prm['machine'];
+			$tmplvar["content_tmpl"] = "vnc";
+			$tmplvar["page"]["h1"] = "View";
+		break;
+		}
 	}
 	else add_error("invalid name");
 break;
@@ -375,11 +426,11 @@ case "event":
 			$delay[] = 0;
 			$cmds[] = "mouse_move -1000 -1000";
 			/* you should setup mouse in guest OS not to get accelerated (eg. "xset m 1/1 0" in X11) */
-			$delay[] = 500;
+			$delay[] = 200;
 			$cmds[] = "mouse_move $x $y";
-			$delay[] = 500;
+			$delay[] = 200;
 			$cmds[] = "mouse_button $btn";
-			$delay[] = 500;
+			$delay[] = 200;
 			$cmds[] = "mouse_button 0";
 		}
 		else
@@ -406,6 +457,7 @@ case "refresh_screenshot":
 			"name" => $vmname,
 			"machine" => qemu_load($ini, $vmname),
 		);
+		$prm['machine']["screenshot"] = qemu_load_screenshot($ini, $vmname);
 		
 		if($prm['machine']["state"]["running"])
 		{
@@ -459,7 +511,10 @@ case "get":
 			"name" => $vmname,
 			"machine" => qemu_load($ini, $vmname),
 		);
-		
+		$prm['machine']["screenshot"] = qemu_load_screenshot($ini, $vmname);
+
+		// TODO: batch api calls
+				
 		if(@$_REQUEST["refresh_screenshot_if_running"])
 		{
 			if($prm['machine']["state"]["running"])
@@ -603,6 +658,8 @@ case "autocomplete":
 					{
 						$str1 = substr($lsub, 0, strlen($grp[1]));
 						$given = substr($psub, strlen($grp[1]));
+						
+						autocomplete_search_files:
 						$absolute = (substr($given, 0, 1) == '/');
 						if(!$absolute)
 						{
@@ -617,13 +674,20 @@ case "autocomplete":
 							chdir($pwd);
 						}
 						
+						if(count($glob) == 1 and substr($glob[0], -1) == "/")
+						{
+							$given = $glob[0];
+							goto autocomplete_search_files;
+						}
+						
 						$current_line = $add_lines[0];
 						foreach($glob as $n => $path1)
 						{
 							$add_lines[$n] = $current_line;
 							list($dirname, $basename) = array_values(pathinfo($path1));
 							if(substr($dirname, -1) != "/") $dirname .= "/";
-							if($dirname == "./") $dirname = "";
+							if($dirname == "./") $dirname = "";	// do not indicate working directory
+							if(substr($path1, -1) == "/") $basename .= "/";	// pathinfo removes trailing slash
 							$add_lines[$n]['label'][] = $str1."<span class=\"ac_path\">$dirname</span><span class=\"ac_file\">$basename</span>";
 							$add_lines[$n]['value'][] = $str1.$path1;
 						}

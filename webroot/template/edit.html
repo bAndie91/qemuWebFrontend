@@ -9,7 +9,7 @@
 		<td>Name</td>
 		<td>
 			{if="$act=='edit'"}{$vm.name}{else}<input type=text name=name value="{$vm.name}" />{/if}
-			{if="isset($vm.name)"}<a href="?act=view&name={$vm.name}">View ...</a>{/if}
+			{if="$act=='edit'"}<a href="?act=view&name={$vm.name}">View ...</a>{/if}
 		</td>
 	</tr>
 	<tr>

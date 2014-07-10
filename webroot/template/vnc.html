@@ -1,0 +1,74 @@
+<div id=qemu_edit_vnc>
+
+	<a href="?act=edit&name={$vm.name}">edit</a>
+	<a href="?act=view&name={$vm.name}">view</a>
+
+<form method=POST>
+	<input type=hidden name=name value="{$vm.name}" />
+	<input type=hidden name=act value="change" />
+	<input type=hidden name=change value="vnc" />
+	
+	<table id=info_vnc>
+	<tr>
+		<th>VNC Access</th>
+		<td>
+			<input type=checkbox name=enable {if="$vm.vnc.enabled"}checked{else}{/if} id=enable_vnc />
+			<label for=enable_vnc>enabled</label>
+		</td>
+	</tr>
+
+	<tr>
+		<td>listen address</td>
+		<td><input type=text name=host value="{$vm.vnc.host}" /></td>
+	</tr>
+	<tr>
+		<td>listen port</td>
+		<td><input type=number min=5900 max=65535 name=port value="{$vm.vnc.service}" /></td>
+	</tr>
+	{if="$vm.vnc.enabled"}
+		<tr>
+			<td>auth method</td>
+			<td>{$vm.vnc.auth}{if="$vm.vnc.auth=='none'"} <strong>!!</strong>{/if}</td>
+		</tr>
+	{/if}
+	<tr>
+		<td>set password</td>
+		<td><input type=password name=password /> (leave empty to disable authentication)</td>
+	</tr>
+	<tr>
+		<td>share</td>
+		<td>
+			<select name=share>
+			<option value="">n/a</option>
+			<option value="ignore">ignore</option>
+			<option value="force-shared">force-shared</option>
+			<option value="allow-exclusive">allow-exclusive</option>
+			</select>
+		</td>
+	</tr>
+	<tr>
+		<td colspan=2>
+			<input type=submit value="Change" />
+			<input type=reset value="Cancel" />
+		</td>
+	</tr>
+	<tr>
+		<th>Clients</th>
+	</tr>
+	{loop="vm.vnc.clients"}
+		<tr>
+			<td>{$value.host}</td>
+			<td>:{$value.service}</td>
+		</tr>
+	{else}
+		<tr>
+			<td>none</td>
+		</tr>
+	{/loop}
+	</table>
+	
+	{if="$vm.vnc.enabled and isset($vm.vnc.relative_address)"}
+		<a href="vnc://{$vm.vnc.relative_address}::{$vm.vnc.service}">Open VNC Viewer</a><br/>
+	{/if}
+</form>
+</div>

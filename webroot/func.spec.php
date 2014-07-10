@@ -27,7 +27,7 @@ function find_free_vnc_display_num($ini)
 	{
 		foreach(file($file) as $str)
 		{
-			if(preg_match('/vnc=(?:\d+\.)\d+:(\d+)/', $str, $m))
+			if(preg_match('/vnc=[^:,]*:(\d+)/', $str, $m))
 			{
 				$ports_used[] = $m[1] + VNC_PORT_BASE;
 			}

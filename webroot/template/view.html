@@ -22,7 +22,7 @@ State:
 	</span>
 	<a href="?act=new&copy={$vm.name}">copy</a>
 	<a href="?act=edit&name={$vm.name}">edit</a>
-	<a href="?act=view&name={$vm.name}">view</a>
+	<a href="?act=view&name={$vm.name}&getinfo[vnc]=1&template=vnc">vnc</a>
 	<br/>
 	
 	<input type=button id=btn_refresh value="Refresh" onClick="refresh_state({refresh_screenshot: true});" />
@@ -31,7 +31,7 @@ State:
 
 <div id=preview>
 	<i>Screenshot Time:</i>
-	<span id=screenshot_time></span>
+	<span id=screenshot_time>n/a</span>
 	
 	<div>
 	<img id=screenshot />
@@ -46,6 +46,7 @@ State:
 	<div class=clear></div>
 </div>
 </div>
+
 
 <script type="text/javascript">
 document.qemuvm = { name: '{$vm.name}' };

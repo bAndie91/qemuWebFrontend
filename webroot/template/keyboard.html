@@ -1,0 +1,92 @@
+<table id=keyboard>
+	<tr>
+		<td><input type=button value="Esc" onClick="specKey('esc');" /></td>
+		<td><input type=button value="F1" onClick="specKey('f1');" /></td>
+		<td><input type=button value="F2" onClick="specKey('f2');" /></td>
+		<td><input type=button value="F3" onClick="specKey('f3');" /></td>
+		<td><input type=button value="F4" onClick="specKey('f4');" /></td>
+		<td><input type=button value="F5" onClick="specKey('f5');" /></td>
+		<td><input type=button value="F6" onClick="specKey('f6');" /></td>
+		<td><input type=button value="F7" onClick="specKey('f7');" /></td>
+		<td><input type=button value="F8" onClick="specKey('f8');" /></td>
+		<td><input type=button value="F9" onClick="specKey('f9');" /></td>
+		<td><input type=button value="F10" onClick="specKey('f10');" /></td>
+		<td><input type=button value="F11" onClick="specKey('f11');" /></td>
+		<td style="padding-right: 5px;"><input type=button value="F12" onClick="specKey('f12');" /></td>
+		
+		<td><input type=button value="Print" onClick="specKey('print');" /></td>
+		<td><input type=button value="&#8616;" onClick="specKey('scroll_lock');" class="symbol" /></td>
+		<td style="padding-right: 5px;"><input type=button value="SysRq" onClick="specKey('sysrq');" /></td>
+	</tr>
+	<tr>
+		<td></td>
+		<td colspan=10 rowspan=4>
+			<textarea id=notepad></textarea>
+		</td>
+		<td></td>
+		<td></td>
+		
+		<td><input type=button value="Ins" onClick="specKey('insert');" /></td>
+		<td><input type=button value="Home" onClick="specKey('home');" /></td>
+		<td><input type=button value="PgUp" onClick="specKey('pgup');" /></td>
+
+		<td><input type=button value="Num" onClick="specKey('num_lock');" /></td>
+		<td><input type=button value="/" onClick="specKey('kp_divide');" class="symbol" /></td>
+		<td><input type=button value="*" onClick="specKey('kp_multiply');" class="symbol" /></td>
+		<td><input type=button value="&ndash;" onClick="specKey('kp_subtract');" class="symbol" /></td>
+	</tr>
+	<tr>
+		<td><input type=button value="&#8633;" onClick="specKey('tab');" class="symbol" /></td>
+		<td colspan=2 rowspan=2><input type=button value="&#8629;" onClick="specKey('ret');" class="symbol" /></td>
+		
+		<td><input type=button value="Del" onClick="specKey('delete');" /></td>
+		<td><input type=button value="End" onClick="specKey('end');" /></td>
+		<td><input type=button value="PgDn" onClick="specKey('pgdn');" /></td>
+
+		<td><input type=button value="7" onClick="specKey('kp_7');" /></td>
+		<td><input type=button value="8" onClick="specKey('kp_8');" /></td>
+		<td><input type=button value="9" onClick="specKey('kp_9');" /></td>
+		<td rowspan=2><input type=button value="+" onClick="specKey('kp_add');" class="symbol" /></td>
+	</tr>
+	<tr>
+		<td><input type=button value="Caps" onClick="specKey('caps_lock');" /></td>
+
+		<td></td>
+		<td></td>
+		<td></td>
+
+		<td><input type=button value="4" onClick="specKey('kp_4');" /></td>
+		<td><input type=button value="5" onClick="specKey('kp_5');" /></td>
+		<td><input type=button value="6" onClick="specKey('kp_6');" /></td>
+	</tr>
+	<tr>
+		<td><input type=button value="&#8682;" onClick="modKey('shift', this);" class="symbol" /></td>
+		<td colspan=2><input type=button value="&#8682;" onClick="modKey('shift_r', this);" class="symbol" /></td>
+		
+		<td></td>
+		<td><input type=button value="&#8593;" onClick="specKey('up');" class="symbol" /></td>
+		<td></td>
+
+		<td><input type=button value="1" onClick="specKey('kp_1');" /></td>
+		<td><input type=button value="2" onClick="specKey('kp_2');" /></td>
+		<td><input type=button value="3" onClick="specKey('kp_3');" /></td>
+		<td rowspan=2><input type=button value="&#8626;" onClick="specKey('kp_enter');" class="symbol" /></td>
+	</tr>
+	<tr>
+		<td><input type=button value="Ctrl" onClick="modKey('ctrl', this);" /></td>
+		<td><input type=button value="Meta" onClick="modKey('altgr', this);" /></td>
+		<td><input type=button value="Alt" onClick="modKey('alt', this);" /></td>
+		<td colspan=6><input type=button value=" " onClick="specKey('spc');" /></td>
+		<td><input type=button value="Alt" onClick="modKey('alt_r', this);" /></td>
+		<td><input type=button value="&#9776;" onClick="specKey('menu');" class="symbol" /></td>
+		<td><input type=button value="Meta" onClick="modKey('altgr_r', this);" /></td>
+		<td><input type=button value="Ctrl" onClick="modKey('ctrl_r', this);" /></td>
+		
+		<td><input type=button value="&#8592;" onClick="specKey('left');" class="symbol" /></td>
+		<td><input type=button value="&#8595;" onClick="specKey('down');" class="symbol" /></td>
+		<td><input type=button value="&#8594;" onClick="specKey('right');" class="symbol" /></td>
+
+		<td colspan=2><input type=button value="0" onClick="specKey('kp_0');" /></td>
+		<td><input type=button value="." onClick="specKey('kp_decimal');" class="symbol" /></td>
+	</tr>
+</table>

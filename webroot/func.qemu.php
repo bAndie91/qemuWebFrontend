@@ -43,7 +43,7 @@ function qemu_load($ini, $vmname = NULL, $load_opts = true)
 	
 	$dir = $ini['qemu']['machine_dir'];
 	$dh = @opendir($dir);
-	while($entry = @readdir($dh))
+	while(($entry = @readdir($dh)) !== false)
 	{
 		if($entry == '.' or $entry == '..') continue;
 		if(is_dir("$dir/$entry"))
@@ -57,7 +57,6 @@ function qemu_load($ini, $vmname = NULL, $load_opts = true)
 				$prm = array('machine'=>$vmlist[$entry]);
 				$vmlist[$entry]["opt"] = qemu_load_opt("$dir/$entry/options");
 				$vmlist[$entry]["state"] = qemu_vmstate($ini, $prm);
-				$vmlist[$entry]["screenshot"] = qemu_load_screenshot($ini, $prm);
 			}
 		}
 	}
@@ -71,7 +70,7 @@ function qemu_load_opt($opt_dir)
 {
 	$return = array();
 	$dh = @opendir($opt_dir);
-	while($entry = @readdir($dh))
+	while(($entry = @readdir($dh)) !== false and $entry !== NULL)
 	{
 		$file = "$opt_dir/$entry";
 		if(is_file($file))
@@ -103,7 +102,7 @@ function qemu_save_opt($ini, $prm)
 		}
 	}
 	$dh = opendir($dir);
-	while($entry = readdir($dh))
+	while(($entry = readdir($dh)) !== false)
 	{
 		if(!is_file("$dir/$entry")) continue;
 		if(!in_array($entry, $opt_names) or !is_writable("$dir/$entry"))
@@ -210,7 +209,7 @@ function qemu_start($ini, $prm)
 	if($ok)
 	{
 		//add_error( var_export(qemu_mk_opt($prm['machine']['opt']) ,1));
-		$cmd = execve("qemu", qemu_mk_opt($prm['machine']['opt']));
+		$cmd = execve("qemu", qemu_mk_opt($prm['machine']['opt']), array("stdout"=>"/dev/null","stderr"=>"/dev/null"));
 		if($cmd["code"] === 0)
 		{
 			$return = true;
@@ -361,6 +360,76 @@ function qemu_vmstate($ini, $prm)
 		"running" => $running,
 		"paused" => @$paused,
 	);
+}
+
+function qemu_info_vnc($ini, $prm)
+{
+	$reply = qemu_single_cmd($ini, $prm, "query-vnc");
+	if(isset($reply['return']['host']))
+	{
+		$addr = $reply['return']['host'];
+		if(ip2long($addr) == 0)
+		{
+			$cmd = execve("ip", array("route", "get", $_SERVER['REMOTE_ADDR']));
+			preg_match('/src\s+(\S+)/', $cmd["stdout"], $grp);
+			$addr = $grp[1];
+		}
+		$lans = get_LANs();
+		$lan1 = get_LAN_for_address($addr, $lans);
+		$lan2 = get_LAN_for_address($_SERVER['REMOTE_ADDR'], $lans);
+		if($lan1['address'] == $lan2['address'])
+		{
+			$reply['return']['relative_address'] = $addr;
+		}
+	}
+	else
+	{
+		$reply['return']['host'] = "0.0.0.0";
+	}
+	if(!isset($reply['return']['service'])) $reply['return']['service'] = find_free_vnc_display_num($ini) + VNC_PORT_BASE;
+	return $reply['return'];
+}
+
+function qemu_change_vnc($ini, $prm, $host, $display = 0, $password = NULL, $share = NULL)
+{
+	$cmds = array();
+	$cmds[] = array(
+		"execute" => "change",
+		"arguments" => array(
+			"device" => "vnc",
+			"target" => "none",
+		),
+	);
+	$options = '';
+	if($host != "")
+	{
+		if(isset($password))
+		{
+			$cmds[] = array(
+				"execute" => "change",
+				"arguments" => array(
+					"device" => "vnc",
+					"target" => "password",
+					"arg" => $password,
+				),
+			);
+			$options .= ",password";
+		}
+		if(isset($share))
+		{
+			$options .= ",share=$share";
+		}
+		$cmds[] = array(
+			"execute" => "change",
+			"arguments" => array(
+				"device" => "vnc",
+				"target" => "$host:$display$options",
+			),
+		);
+	}
+
+	$reply = qemu_cmd($ini, $prm, $cmds);
+	return $reply;
 }
 
 function qemu_cmd($ini, $prm, $cmds, $delay = array())
@@ -545,7 +614,6 @@ function qemu_refresh_screenshot($ini, $prm, $prev_shid = NULL)
 			"file" => $filepath,
 			"id" => $shid,
 			"timestamp" => $stat['mtime'],
-			"timestr" => strftime('%c', $stat['mtime']),
 			"size" => $stat['size'],
 			"width" => $width,
 			"height" => $height,
@@ -558,6 +626,7 @@ function qemu_refresh_screenshot($ini, $prm, $prev_shid = NULL)
 				"id" => $diff_shid,
 				"timestamp" => $stat['mtime'],
 				"size" => $stat['size'],
+				"method" => $ini['qemu']['image_comparasion_method'],
 			);
 		}
 	}
