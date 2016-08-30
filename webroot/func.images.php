@@ -19,7 +19,6 @@ function imagesavetoany($img, $file)
 	case "gif":
 		$ok = imagegif($img, $file);
 	break;
-	case "jpg":
 	case "jpeg":
 		$ok = imagejpeg($img, $file, 90);
 	break;
