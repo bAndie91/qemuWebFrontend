@@ -625,8 +625,7 @@ if($run_action)
 			{
 				$shid = $_REQUEST["id"];
 				$file = $ini["qemu"]["machine_dir"]."/$vmname/screenshot/".(@$_REQUEST['is_diff']?"diff/":"").$ini["qemu"]["screenshot_prefix"].$shid.$ini["qemu"]["screenshot_suffix"].".".$ini["qemu"]["screenshot_ext"];
-				$cmd = execve("file", array("-ib", $file));
-				header("Content-Type: ".trim($cmd["stdout"]));
+				header("Content-Type: image/".$ini["qemu"]["screenshot_ext"]);
 				header("Content-Length: ".filesize($file));
 				$maxage = 10 * 365 * 24 * 60 * 60;
 				header("Pragma: cache");
