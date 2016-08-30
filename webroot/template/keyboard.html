@@ -21,10 +21,11 @@
 	<tr>
 		<td></td>
 		<td colspan=10 rowspan=4>
-			<textarea id=notepad></textarea>
+			<textarea id=notepad placeholder="Typewriter keys work here"></textarea>
 		</td>
-		<td></td>
-		<td></td>
+		<td colspan=2>
+			<input type=button value="&larr;" style="text-align: left; padding-left: 4px;" class="symbol" onClick="specKey('backspace');" />
+		</td>
 		
 		<td><input type=button value="Ins" onClick="specKey('insert');" /></td>
 		<td><input type=button value="Home" onClick="specKey('home');" /></td>

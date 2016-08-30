@@ -1,2 +1,2 @@
-user,vlan=0,restrict=off,smb=share
+user,vlan=0,restrict=off,smb=./share
 nic,model=pcnet

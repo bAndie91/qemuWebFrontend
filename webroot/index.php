@@ -17,7 +17,7 @@ $tmplvar = array(
 			"link"=>"?act=list",
 		),
 		array(
-			"title"=>"Add",
+			"title"=>"New",
 			"link"=>"?act=new",
 		),
 	),
@@ -42,157 +42,188 @@ if($is_xhr) $ExpectedContentType = "json";
 
 $Action = @$_REQUEST["act"];
 $vmname = NULL;
+$run_action = true;
 if(is_vmname(@$_REQUEST["name"]))
 {
 	$vmname = $_REQUEST["name"];
 }
 
+
 switch($Action)
 {
-case "new":
-case "edit":
-	$act_ok = false;
-
-	if(isset($_REQUEST["submit"]))
+case "delete":
+case "power_cycle":
+case "start":
+case "shutdown":
+case "poweroff":
+case "reset":
+case "pause":
+case "resume":
+case "start":
+case "view":
+case "change":
+case "event":
+case "refresh_screenshot":
+case "download_screenshot":
+case "get":
+	if(!isset($vmname))
 	{
-		if(isset($vmname))
-		{
-			$opt = array();
-			foreach($_REQUEST as $key => $val)
-			{
-				if(preg_match('/^opt(key|val)_(\d+)$/', $key, $m))
-				{
-					$opt[$m[2]][$m[1]] = $val;
-				}
-			}
-			$options = array();
-			foreach($opt as $a)
-			{
-				if($a["key"]=="") continue;
-				$options[$a["key"]][] = $a["val"];
-			}
-			$prm = array(
-				"machine" => array(
-					"name" => $vmname,
-					"opt" => $options,
-				),
-			);
-			
-			if($Action == "edit")
-			{
-				$act_ok = qemu_save_opt($ini, $prm);
-			}
-			else
-			{
-				$act_ok = qemu_new($ini, $prm);
-			}
-		}
-		else
-		{
-			add_error("invalid name");
-		}
+		add_error("invalid name");
+		$run_action = false;
 	}
-	else
+}
+
+
+if($run_action)
+{
+	switch($Action)
 	{
-		if($Action == "edit")
+	case "new":
+	case "edit":
+		$act_ok = false;
+
+		if(isset($_REQUEST["submit"]))
 		{
-			$prm = array(
-				"machine" => qemu_load($ini, $vmname),
-			);
-		}
-		elseif(isset($_REQUEST["copy"]))
-		{
-			if(is_vmname($_REQUEST["copy"]) and is_vmname($_REQUEST["copy"]."-copy"))
+			if(isset($vmname))
 			{
-				$prm = array(
-					"machine" => qemu_load($ini, $_REQUEST["copy"]),
-				);
-				if(isset($prm["machine"]["name"]))
+				$opt = array();
+				foreach($_REQUEST as $key => $val)
 				{
-					$prm["machine"]["name"] = $_REQUEST["copy"]."-copy";
+					if(preg_match('/^opt(key|val)_(\d+)$/', $key, $m))
+					{
+						$opt[$m[2]][$m[1]] = $val;
+					}
+				}
+				$options = array();
+				foreach($opt as $a)
+				{
+					if($a["key"]=="") continue;
+					$options[$a["key"]][] = $a["val"];
+				}
+				$prm = array(
+					"machine" => array(
+						"name" => $vmname,
+						"opt" => $options,
+					),
+				);
+				
+				if($Action == "edit")
+				{
+					$act_ok = qemu_save_opt($ini, $prm);
 				}
 				else
 				{
-					add_error("could not copy, no named VM found");
+					$act_ok = qemu_new($ini, $prm);
 				}
 			}
 			else
 			{
-				add_error("could not copy, invalid VM name");
+				add_error("invalid name");
 			}
 		}
 		else
 		{
-			$new_id = 1;
-			foreach(qemu_load($ini, NULL, false) as $vm)
+			if($Action == "edit")
 			{
-				if(preg_match('/^vm-(\d+)$/', $vm["name"], $m) and $m[1]+1 > $new_id) $new_id = $m[1]+1;
+				$prm = array(
+					"machine" => qemu_load($ini, $vmname, array("opts"=>true, "state"=>true)),
+				);
 			}
-			$prm = array(
-				"machine" => array(
-					"name" => "vm-$new_id",
-					"opt" => qemu_load_opt("./options_default"),
-				),
-			);
-		}
-		
-		foreach($prm['machine']['opt'] as $key => $values)
-		{
-			if($key == 'display' or $key == 'vnc')
+			elseif(isset($_REQUEST["copy"]))
 			{
-				$regex = '/((\d+\.){3}\d+):\*/';
-				if($key == 'display') $regex = '/(vnc=(\d+\.){3}\d+):\*/';
-				foreach($values as &$str)
+				if(is_vmname($_REQUEST["copy"]) and is_vmname($_REQUEST["copy"]."-copy"))
 				{
-					if(preg_match($regex, $str))
+					$prm = array(
+						"machine" => qemu_load($ini, $_REQUEST["copy"], array("opts"=>true, "state"=>true)),
+					);
+					if(isset($prm["machine"]["name"]))
 					{
-						$num = find_free_vnc_display_num($ini);
-						if($num !== false) $str = preg_replace($regex, "\\1:$num", $str);
-						else add_error("not found free tcp port for vnc");
+						$prm["machine"]["name"] = $_REQUEST["copy"]."-copy";
+					}
+					else
+					{
+						add_error("could not copy, no named VM found");
 					}
 				}
-			}
-			$prm['machine']['opt'][$key] = $values;
-		}
-	}
-
-	if($act_ok)
-	{
-		$Redirect = array(
-			"msg" => ($Action == "edit" ? "options saved for: $vmname" : "new VM is created: $vmname"),
-			"act" => "edit",
-			"name" => $vmname,
-		);
-	}
-	else
-	{
-		$tmplvar["vm"] = array();
-		$tmplvar["vm"]["name"] = $prm['machine']['name'];
-		ksort($prm['machine']['opt']);
-		foreach($prm['machine']['opt'] as $opt_name => $opts)
-		{
-			if(empty($opts))
-			{
-				$tmplvar["vm"]["opt"][] = array("name"=>$opt_name, "value"=>"");
+				else
+				{
+					add_error("could not copy, invalid VM name");
+				}
 			}
 			else
 			{
-				foreach($opts as $value)
+				$new_id = 1;
+				foreach(qemu_load($ini, NULL, array("opts"=>true, "state"=>true)) as $vm)
 				{
-					$tmplvar["vm"]["opt"][] = array("name"=>$opt_name, "value"=>$value);
+					if(preg_match('/^vm-(\d+)$/', $vm["name"], $m) and $m[1]+1 > $new_id) $new_id = $m[1]+1;
 				}
+				$prm = array(
+					"machine" => array(
+						"name" => "vm-$new_id",
+						"opt" => qemu_load_opt("./options_default"),
+					),
+				);
+			}
+			
+			foreach($prm['machine']['opt'] as $key => $values)
+			{
+				if($key == 'display' or $key == 'vnc')
+				{
+					$regex = '/((\d+\.){3}\d+):\*/';
+					if($key == 'display') $regex = '/(vnc=(\d+\.){3}\d+):\*/';
+					foreach($values as &$str)
+					{
+						if(preg_match($regex, $str))
+						{
+							$num = find_free_vnc_display_num($ini);
+							if($num !== false) $str = preg_replace($regex, "\\1:$num", $str);
+							else add_error("not found free tcp port for vnc");
+						}
+					}
+				}
+				$prm['machine']['opt'][$key] = $values;
 			}
 		}
-		$tmplvar["act"] = $Action;
-		
-		$tmplvar["content_tmpl"] = "edit";
-		$tmplvar["page"]["h1"] = ($Action == "edit" ? "Edit parameters" : "Add new");
-	}
-break;
-case "delete":
-	$tmplvar["page"]["h1"] = "Delete";
-	if(isset($vmname))
-	{
+
+		if($act_ok)
+		{
+			$Redirect = array(
+				"msg" => ($Action == "edit" ? "options saved for: $vmname" : "new VM is created: $vmname"),
+				"act" => "edit",
+				"name" => $vmname,
+			);
+		}
+		else
+		{
+			$tmplvar["vm"] = array();
+			$tmplvar["vm"]["name"] = $prm['machine']['name'];
+			ksort($prm['machine']['opt']);
+			foreach($prm['machine']['opt'] as $opt_name => $opts)
+			{
+				if($Action == "edit" and $opt_name == 'name')
+				{
+					continue;
+				}
+				if(empty($opts))
+				{
+					$tmplvar["vm"]["opt"][] = array("name"=>$opt_name, "value"=>"");
+				}
+				else
+				{
+					foreach((array)$opts as $value)
+					{
+						$tmplvar["vm"]["opt"][] = array("name"=>$opt_name, "value"=>$value);
+					}
+				}
+			}
+			$tmplvar["act"] = $Action;
+			
+			$tmplvar["content_tmpl"] = "edit";
+			$tmplvar["page"]["h1"] = ($Action == "edit" ? "Edit parameters" : "Add new");
+		}
+	break;
+	case "delete":
+		$tmplvar["page"]["h1"] = "Delete";
 		$tmplvar["vm"]["name"] = $vmname;
 		$ok = qemu_delete($ini, array("machine"=>array("name"=>$vmname)));
 		if($ok)
@@ -202,49 +233,49 @@ case "delete":
 				"act" => "list",
 			);
 		}
-	}
-	else add_error("invalid name");
-break;
-case "start":
-	$act_ok = false;
-	if(isset($vmname))
-	{
+	break;
+	case "power_cycle":
 		$prm = array(
 			"name" => $vmname,
-			"machine" => qemu_load($ini, $vmname),
+			"machine" => qemu_load($ini, $vmname, array("opts"=>true)),
 		);
-		$act_ok = qemu_start($ini, $prm);
-	}
-	else
-	{
-		add_error("invalid name");
-	}
-	
-	if($act_ok)
-	{
-		$Redirect = array(
-			"msg" => "VM is started: $vmname",
-			"act" => "view",
-			"name" => $vmname,
-		);
-	}
-	else
-	{
-		$Redirect = array(
-			"act" => "list",
-		);
-	}
-break;
-case "shutdown":
-case "poweroff":
-case "reset":
-case "pause":
-case "resume":
-	if(isset($vmname))
-	{
+		$reply = qemu_single_cmd($ini, $prm, "quit");
+		// TODO: error handle
+	case "start":
+	case "restorestate":
 		$prm = array(
 			"name" => $vmname,
-			"machine" => qemu_load($ini, $vmname),
+			"machine" => qemu_load($ini, $vmname, array("opts"=>true)),
+		);
+		if($Action == "restorestate")
+		{
+			$prm['machine']['opt']['incoming'] = "exec:unxz<state.xz";
+		}
+		$ok = qemu_start($ini, $prm);
+		
+		if($ok)
+		{
+			$Redirect = array(
+				"msg" => "VM is started: $vmname",
+				"act" => "view",
+				"name" => $vmname,
+			);
+		}
+		else
+		{
+			$Redirect = array(
+				"act" => "list",
+			);
+		}
+	break;
+	case "shutdown":
+	case "poweroff":
+	case "reset":
+	case "pause":
+	case "resume":
+		$prm = array(
+			"name" => $vmname,
+			"machine" => qemu_load($ini, $vmname, array("opts"=>true)),
 		);
 		
 		if($Action == "poweroff")	{ $execute = "quit"; $redirect_msg = "VM is turned off"; }
@@ -273,14 +304,80 @@ case "resume":
 		{
 			add_error("$Action failed");
 		}
-	}
-break;
-case "view":
-	if(isset($vmname))
-	{
+	break;
+	case "savestate":
 		$prm = array(
 			"name" => $vmname,
-			"machine" => qemu_load($ini, $vmname),
+			"machine" => qemu_load($ini, $vmname, array("opts"=>true)),
+		);
+		
+		$cmds = array(
+			array(
+				"execute" => "stop",
+			),
+			array(
+				"execute" => "migrate",
+				"arguments" => array(
+					"blk" => false,
+					"uri" => sprintf("exec:xz -9 >%s/%s/state.xz", $ini["qemu"]["machine_dir"], $vmname),
+				),
+			),
+		);
+		$errfail = true;
+		$reply = qemu_cmd($ini, $prm, $cmds, NULL, $errfail);
+		$Redirect = array(
+			"act" => "view",
+			"name" => $vmname,
+		);
+		$last_reply = @$reply[count($reply)-1];
+		if(count($reply) == count($cmds) and isset($reply['return']))
+		{
+			$Redirect["msg"] = "Started to save state";
+		}
+		else
+		{
+			add_error(qmp_error_to_string($last_reply['error']));
+		}
+	break;
+	case "get":
+		$load_opts = array("opts"=>true, "state"=>true);
+		if(isset($_REQUEST["getinfo"]["savestate"]))
+		{
+			$load_opts["migrate"] = true;
+		}
+		$prm = array(
+			"name" => $vmname,
+			"machine" => qemu_load($ini, $vmname, $load_opts),
+		);
+		if(isset($_REQUEST["getinfo"]["screenshot"]))
+		{
+			$prm['machine']["screenshot"] = qemu_load_screenshot($ini, $prm);
+		}
+		
+		// TODO: batch api calls
+
+		if(@$_REQUEST["refresh_screenshot_if_running"])
+		{
+			if($prm['machine']["state"]["running"])
+			{
+				if(is_shid(@$_REQUEST["prev_id"]))
+				{
+					$prev_id = $_REQUEST["prev_id"];
+				}
+				$sh = qemu_refresh_screenshot($ini, $prm, @$prev_id);
+				if($sh !== false)
+				{
+					$prm['machine']["screenshot"] = $sh;
+				}
+			}
+		}
+
+		$tmplvar["vm"] = $prm["machine"];
+	break;
+	case "view":
+		$prm = array(
+			"name" => $vmname,
+			"machine" => qemu_load($ini, $vmname, array("opts"=>true, "state"=>true)),
 		);
 
 		if(isset($_REQUEST["getinfo"]["vnc"]))
@@ -288,9 +385,15 @@ case "view":
 			$prm['machine']['vnc'] = qemu_info_vnc($ini, $prm);
 		}
 		
+		if(isset($_REQUEST["getinfo"]["block"]))
+		{
+			$reply = qemu_single_cmd($ini, $prm, "query-block");
+			$prm['machine']['block'] = $reply["return"];
+		}
+		
 		if(isset($_REQUEST["getinfo"]["screenshot"]))
 		{
-			$prm['machine']["screenshot"] = qemu_load_screenshot($ini, $vmname);
+			$prm['machine']["screenshot"] = qemu_load_screenshot($ini, $prm);
 			
 			if(!file_exists(@$prm['machine']["screenshot"]["file"]))
 			{
@@ -313,48 +416,86 @@ case "view":
 		{
 			$tmplvar["content_tmpl"] = $_REQUEST["template"];
 		}
-	}
-	else add_error("invalid name");
-break;
-case "change":
-	if(isset($vmname))
-	{
+	break;
+	case "novnc":
+		$prm = array(
+			"name" => $vmname,
+			"machine" => qemu_load($ini, $vmname),
+		);
+		$url = mk_novnc_url($ini, $prm, $ini["webserver"]["novnc_url"]);
+		if($url)
+		{
+			header("Location: $url");
+			exit();
+		}
+		else
+		{
+			$Redirect = array(
+				"msg" => "Error preparing noVNC",
+				"act" => "view",
+				"name" => $vmname,
+			);
+		}
+	break;
+	case "change":
 		switch($_REQUEST["change"])
 		{
 		case "vnc":
 			$prm = array(
 				"name" => $vmname,
-				"machine" => qemu_load($ini, $vmname),
+				"machine" => qemu_load($ini, $vmname, array("opts"=>true, "state"=>true)),
 			);
 			
-			if(isset($_REQUEST["enable"]) and strtolower($_REQUEST["enable"]) == 'on')
+			if(ischecked("enable"))
 			{
-				if(preg_match('/^[a-z0-9\._-]+$/i', @$_REQUEST["host"]))
+				if($_REQUEST["family"] == "unix")
 				{
-					$host = $_REQUEST["host"];
-					if(isset($_REQUEST["port"])) $display = intval($_REQUEST["port"]) - 5900;
-					if(isset($_REQUEST["display"])) $display = intval($_REQUEST["display"]);
-					if(isset($_REQUEST["password"]) and $_REQUEST["password"] != "") $password = $_REQUEST["password"];
-					if(!empty($_REQUEST["share"])) $share = preg_replace('/[^a-z0-9_-]/i', '', $_REQUEST["share"]);
+					$vmdir = $ini["qemu"]["machine_dir"]."/$vmname";
+					$listen_uds_dir = "$vmdir/vnc";
+					$listen_uds = "$listen_uds_dir/vnc.sock";
+					$listen = "unix:$listen_uds";
+					qemu_mkdir_vnc($ini, $prm, $listen_uds_dir);
 				}
-				else add_error("invalid 'host' parameter");
+				elseif($_REQUEST["family"] == "inet")
+				{
+					if(preg_match('/^[a-z0-9\._-]+$/i', @$_REQUEST["host"]))
+					{
+						$host = $_REQUEST["host"];
+						if(isset($_REQUEST["port"])) $display = intval($_REQUEST["port"]) - VNC_PORT_BASE;
+						if(isset($_REQUEST["display"])) $display = intval($_REQUEST["display"]);
+						$listen = "$host:$display";
+					}
+					else add_error("invalid 'host' parameter");
+				}
+				else add_error("unknown socket family: '{$_REQUEST['family']}'");
+
+				if(ischecked("enable_auth")) $password = $_REQUEST["password"];
+				if(!empty($_REQUEST["share"])) $share = preg_replace('/[^a-z0-9_-]/i', '', $_REQUEST["share"]);
 			}
 			else
 			{
-				$host = "";
+				$listen = "";
 			}
-			$reply = qemu_change_vnc($ini, $prm, $host, @$display, @$password, @$share);
-			$ok = true;
-			foreach($reply as $r)
+			$reply = qemu_change_vnc($ini, $prm, $listen, @$password, @$share);
+			$ok = ($reply !== false);
+			if($ok)
 			{
-				if(isset($r['error']))
+				foreach($reply as $r)
 				{
-					$ok = false;
-					add_error($r['error']['class'].": ".$r['error']['desc']);
+					if(isset($r['error']))
+					{
+						$ok = false;
+						add_error($r['error']['class'].": ".$r['error']['desc']);
+					}
 				}
 			}
 			if($ok)
 			{
+				if(isset($listen_uds))
+				{
+					qemu_fix_vnc_socket($ini, $prm, $listen_uds);
+				}
+				
 				$Messages[] = "VNC settings changed";
 			}
 			$prm['machine']['vnc'] = qemu_info_vnc($ini, $prm);
@@ -363,24 +504,23 @@ case "change":
 			$tmplvar["content_tmpl"] = "vnc";
 			$tmplvar["page"]["h1"] = "View";
 		break;
+		default:
+			add_error("not yet supported");
 		}
-	}
-	else add_error("invalid name");
-break;
-case "event":
-	if(isset($vmname))
-	{
+	break;
+	case "event":
 		$prm = array(
 			"name" => $vmname,
-			"machine" => qemu_load($ini, $vmname),
+			"machine" => qemu_load($ini, $vmname, array("opts"=>true)),
 		);
 		
-		
-		if($_REQUEST["param"]["event"] == "key")
+		switch($_REQUEST["param"]["event"])
 		{
+		case "key":
 			$cmds = array();
 			foreach($_REQUEST["param"]["keys"] as $event)
 			{
+				$keySeq = NULL;
 				if(isset($event["keyName"]) and preg_match('/^[a-z0-9_]+$/', $event["keyName"]))
 				{
 					$keySeq = $event["keyName"];
@@ -411,9 +551,8 @@ case "event":
 					$cmds[] = "sendkey $keySeq";
 				}
 			}
-		}
-		elseif($_REQUEST["param"]["event"] == "click")
-		{
+		break;
+		case "click":
 			$x = intval($_REQUEST["param"]["pos"]["x"]);
 			$y = intval($_REQUEST["param"]["pos"]["y"]);
 			$btn = 0;
@@ -425,16 +564,15 @@ case "event":
 			/* it hopefully moves cursor to upper left corner */
 			$delay[] = 0;
 			$cmds[] = "mouse_move -1000 -1000";
-			/* you should setup mouse in guest OS not to get accelerated (eg. "xset m 1/1 0" in X11) */
+			/* you should setup mouse in guest OS not to get accelerated (eg. "xset m 1/1 0" in Xorg) */
 			$delay[] = 200;
 			$cmds[] = "mouse_move $x $y";
 			$delay[] = 200;
 			$cmds[] = "mouse_button $btn";
 			$delay[] = 200;
 			$cmds[] = "mouse_button 0";
-		}
-		else
-		{
+		break;
+		default:
 			add_error("unknown event");
 		}
 		
@@ -448,16 +586,13 @@ case "event":
 			$tmplvar["debug"]["cmds"] = $cmds;
 			$tmplvar["debug"]["reply"] = $reply;
 		}
-	}
-break;
-case "refresh_screenshot":
-	if(isset($vmname))
-	{
+	break;
+	case "refresh_screenshot":
 		$prm = array(
 			"name" => $vmname,
-			"machine" => qemu_load($ini, $vmname),
+			"machine" => qemu_load($ini, $vmname, array("opts"=>true, "state"=>true)),
 		);
-		$prm['machine']["screenshot"] = qemu_load_screenshot($ini, $vmname);
+		$prm['machine']["screenshot"] = qemu_load_screenshot($ini, $prm);
 		
 		if($prm['machine']["state"]["running"])
 		{
@@ -477,280 +612,72 @@ case "refresh_screenshot":
 		}
 		
 		$tmplvar["vm"] = $prm['machine'];
-	}
-	else add_error("invalid name");
-break;
-case "download_screenshot":
-	$ExpectedContentType = "raw";
-	if(isset($vmname))
-	{
+	break;
+	case "download_screenshot":
+		$ExpectedContentType = "raw";
 		if(is_shid($_REQUEST["id"]))
 		{
-			$shid = $_REQUEST["id"];
-			$file = $ini["qemu"]["machine_dir"]."/$vmname/screenshot/".(@$_REQUEST['is_diff']?"diff/":"").$ini["qemu"]["screenshot_prefix"].$shid.$ini["qemu"]["screenshot_suffix"].".".$ini["qemu"]["screenshot_ext"];
-			$cmd = execve("file", array("-ib", $file));
-			header("Content-Type: ".trim($cmd["stdout"]));
-			header("Content-Length: ".filesize($file));
-			readfile($file);
+			if(isset($_SERVER['HTTP_IF_MODIFIED_SINCE']))
+			{
+				header("Status: 304");
+			}
+			else
+			{
+				$shid = $_REQUEST["id"];
+				$file = $ini["qemu"]["machine_dir"]."/$vmname/screenshot/".(@$_REQUEST['is_diff']?"diff/":"").$ini["qemu"]["screenshot_prefix"].$shid.$ini["qemu"]["screenshot_suffix"].".".$ini["qemu"]["screenshot_ext"];
+				$cmd = execve("file", array("-ib", $file));
+				header("Content-Type: ".trim($cmd["stdout"]));
+				header("Content-Length: ".filesize($file));
+				$maxage = 10 * 365 * 24 * 60 * 60;
+				header("Pragma: cache");
+				header("Cache-Control: max-age=$maxage");
+				header("Expires: ".gmdate("D, d M Y H:i:s", time() + $maxage)." GMT");
+				readfile($file);
+			}
 			exit(0);
 		}
-		else add_error("invalid screenshot id");
-	}
-	else add_error("invalid name");
-break;
-case "list":
-	$tmplvar["content_tmpl"] = "list";
-	$tmplvar["page"]["h1"] = "Machines";
-	
-	$tmplvar["machines"] = qemu_load($ini);
-break;
-case "get":
-	if($vmname)
-	{
-		$prm = array(
-			"name" => $vmname,
-			"machine" => qemu_load($ini, $vmname),
-		);
-		$prm['machine']["screenshot"] = qemu_load_screenshot($ini, $vmname);
-
-		// TODO: batch api calls
-				
-		if(@$_REQUEST["refresh_screenshot_if_running"])
+		else
 		{
-			if($prm['machine']["state"]["running"])
-			{
-				if(is_shid(@$_REQUEST["prev_id"]))
-				{
-					$prev_id = $_REQUEST["prev_id"];
-				}
-				$sh = qemu_refresh_screenshot($ini, $prm, @$prev_id);
-				if($sh !== false)
-				{
-					$prm['machine']["screenshot"] = $sh;
-				}
-			}
+			header("Status: 404");
+			add_error("invalid screenshot id");
 		}
-
-		$tmplvar["vm"] = $prm["machine"];
-	}
-	else add_error("invalid name");
-break;
-case "autocomplete":
-	$ExpectedContentType = "autocompleter";
-	$Pattern = $_REQUEST["s"];
-	$REprepend = '';
-	$REappend = '';
-	if(preg_match('/^\^/', $Pattern))
-	{
-		$Pattern = substr($Pattern, 1);
-		$REprepend = '^';
-	}
-	if(preg_match('/\$$/', $Pattern))
-	{
-		$Pattern = substr($Pattern, 0, strlen($Pattern)-1);
-		$REappend = '$';
-	}
-	$RE = $REprepend . str_replace('\*', '.*?', preg_quote($Pattern, '/')) . $REappend;
-
+	break;
+	case "list":
+		$tmplvar["content_tmpl"] = "list";
+		$tmplvar["page"]["h1"] = "Machines";
 		
-	if(@$_REQUEST["type"] == "option")
-	{
-		foreach(array_keys($ini["option_type"]) as $str)
+		$tmplvar["machines"] = qemu_load($ini, NULL, array("opts"=>false, "state"=>true, "diskusage"=>true));
+	break;
+	case "autocomplete":
+		$ExpectedContentType = "autocompleter";
+		
+		$tmplvar["lines"] = runAutoComplete($ini, $_REQUEST["s"], @$_REQUEST["type"], @$_REQUEST["option"]);
+	break;
+	case "help":
+		$tmplvar["content_tmpl"] = "raw";
+		$tmplvar["page"]["h1"] = "Help";
+		
+		$tmplvar["page"]["content"] = "<h2>Options</h2>\n";
+		$tmplvar["page"]["content"] .= "<ul>\n";
+		foreach($ini["option_type"] as $opt => $optdef)
 		{
-			if(preg_match("/$RE/", $str)) $tmplvar["lines"][] = $str;
+			$tmplvar["page"]["content"] .= "<li>$opt</li>\n";
 		}
-	}
-	else
-	{
-		$lines = array();
-		$Expr = $ini["option_type"][$_REQUEST["option"]];
-		$alterns = (array)$Expr;
-		do {
-			$unresolved = false;
-			$new = array();
-			foreach($alterns as $n => $tmp)
-			{
-				if(preg_match('/^(.*?)\[([^\[\]]*)\](.*)/', $tmp, $grp))
-				{
-					$unresolved = true;
-					foreach(explode('|', $grp[2]) as $w)
-					{
-						$new[] = $grp[1].$w.$grp[3];
-					}
-				}
-				else
-				{
-					$new[] = $tmp;
-				}
-			}
-			$alterns = $new;
-		}
-		while($unresolved);
-
-		if(!empty($Expr))
+		$tmplvar["page"]["content"] .= "</ul>\n";
+	break;
+	default:
+		if($is_xhr)
 		{
-			$lines[] = array(
-				'value' => "<span class='option_prototype'>$Expr</span>",
-				'data' => array(
-					"raw_value" => $Expr
-				),
+			add_error("invalid action");
+		}
+		else
+		{
+			$Redirect = array(
+				"act" => "list",
 			);
 		}
-
-		$psubs = explode(',', $Pattern);
-		foreach($alterns as $expr_line)
-		{
-			$add_lines = array(array());
-			$trailing_comma = array();
-			
-			$lsubs = explode(',', $expr_line);
-			foreach($lsubs as $n => $lsub)
-			{
-				$psub = @$psubs[$n];
-				if($n+1 < count($psubs))
-				{
-					$lsub_re = preg_quote($lsub, '/');
-					$lsub_re = preg_replace_callback(
-						'/%(\d*)([xsdfp])/',
-						function($grp)
-						{
-							if($grp[2] == 'x')	return ')([[:xdigit:]]{'.$grp[1].'})(';
-							elseif($grp[2] == 'd')	return ')([0-9]+)(';
-							else /* s,f,p */	return ')(.+)(';
-						},
-						$lsub_re);
-					$lsub_re = preg_replace_callback(
-						'/\\\\\{(.*?)\\\\\}/', /* square brackets are escaped earlier */
-						function($grp)
-						{
-							return ')(['.$grp[1].']+)(';
-						},
-						$lsub_re);
-					$lsub_re = "($lsub_re)";
-					
-					if(preg_match("/^$lsub_re$/", $psub))
-					{
-						$label = preg_replace_callback(
-							"/^$lsub_re$/",
-							function($grp)
-							{
-								unset($grp[0]);
-								foreach($grp as $n => &$g)
-								{
-									/* a non-literal string component (even empty) follows a literal and so on */
-									if($n % 2 == 0) $g = "<span class=\"ac_nonliteral\">".$g."</span>";
-								}
-								return implode('', $grp);
-							},
-							$psub);
-						$add_lines[0]['label'][] = $label;
-						$add_lines[0]['value'][] = $psub;
-					}
-					else
-					{
-						continue(2);
-					}
-				}
-				elseif($n+1 == count($psubs))
-				{
-					/* file and path name completion */
-					if(preg_match('/^(.*?)%([fp])/', $lsub, $grp))
-					{
-						$str1 = substr($lsub, 0, strlen($grp[1]));
-						$given = substr($psub, strlen($grp[1]));
-						
-						autocomplete_search_files:
-						$absolute = (substr($given, 0, 1) == '/');
-						if(!$absolute)
-						{
-							$pwd = getcwd();
-							$chdir_ok = chdir($ini['qemu']["machine_dir"]."/$vmname/");
-						}
-						$glob_flags = GLOB_MARK;
-						if($grp[2] == 'p') $glob_flags |= GLOB_ONLYDIR;
-						$glob = glob($given.'*', $glob_flags);
-						if(!$absolute and $chdir_ok)
-						{
-							chdir($pwd);
-						}
-						
-						if(count($glob) == 1 and substr($glob[0], -1) == "/")
-						{
-							$given = $glob[0];
-							goto autocomplete_search_files;
-						}
-						
-						$current_line = $add_lines[0];
-						foreach($glob as $n => $path1)
-						{
-							$add_lines[$n] = $current_line;
-							list($dirname, $basename) = array_values(pathinfo($path1));
-							if(substr($dirname, -1) != "/") $dirname .= "/";
-							if($dirname == "./") $dirname = "";	// do not indicate working directory
-							if(substr($path1, -1) == "/") $basename .= "/";	// pathinfo removes trailing slash
-							$add_lines[$n]['label'][] = $str1."<span class=\"ac_path\">$dirname</span><span class=\"ac_file\">$basename</span>";
-							$add_lines[$n]['value'][] = $str1.$path1;
-						}
-					}
-					else
-					{
-						$add_lines[0]['label'][] = preg_replace_callback(
-							'/(%\d*[a-z]|\{[^\{\}]+\})/i',
-							function($grp)
-							{
-								return "<span class=\"ac_wildcard\">".$grp[1]."</span>";
-							},
-							$lsub);
-						$add_lines[0]['value'][] = $lsub;
-					}
-				}
-				else
-				{
-					$trailing_comma[$n] = true;
-					goto autocomplete_add_lines;
-				}
-			}
-			
-			autocomplete_add_lines:
-			foreach($add_lines as $n => $add_line)
-			{
-				$lines[] = array(
-					'value' => implode(',', $add_line['label']) . (@$trailing_comma[$n] ? "," : ""),
-					'data'  => array(
-						'raw_value' => implode(',', $add_line['value']) . (@$trailing_comma[$n] ? "," : ""),
-					),
-				);
-			}
-		}
-		
-		$unique_values = array();
-		$lines_unique = array();
-		foreach($lines as $n => $line)
-		{
-			if(is_array($line)) $value = $line['value'];
-			else $value = $line;
-			
-			if(in_array($value, $unique_values)) continue;
-			$unique_values[] = $value;
-			$lines_unique[] = $line;
-		}
-
-		$tmplvar["lines"] = $lines_unique;
-	}
-break;
-default:
-	if($is_xhr)
-	{
-		add_error("invalid action");
-	}
-	else
-	{
-		$Redirect = array(
-			"act" => "list",
-		);
 	}
 }
-
 
 /* ================================================================================ */
 
@@ -760,6 +687,7 @@ case "json":
 	$tmplvar["error"] = $GLOBALS["error"];
 	if(isset($Redirect)) $tmplvar["redirect"] = $Redirect;
 	// TODO // $tmplvar["result"] = ;
+	header("Content-Type: text/plain");
 	echo json_encode($tmplvar);
 break;
 case "lines":

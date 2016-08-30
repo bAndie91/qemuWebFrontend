@@ -2,19 +2,23 @@
 
 require_once("const.php");
 require_once("func.php");
+require_once("func.unix.php");
 require_once("func.shell.php");
 require_once("func.net.php");
 require_once("func.images.php");
 require_once("func.qemu.php");
+require_once("func.qemu.low.php");
+require_once("func.qemu.autocompleter.php");
 require_once("func.spec.php");
+require_once("func.vnc.php");
+require_once("func.form.php");
 require_once("raintpl/rain.tpl.class.php");
 
+include("load_config.php");
 
 //ini_set('max_execution_time', 5);
 //set_time_limit(5);
 
-
-$ini = parse_ini_file("config.ini", true, INI_SCANNER_RAW);
 
 if(!preg_match('/\/$/', $ini["qemu"]["raintpl_cache_dir"]))
 {
@@ -34,4 +38,11 @@ raintpl::configure("tpl_dir", "template/");
 raintpl::configure("cache_dir", $ini["qemu"]["raintpl_cache_dir"]);
 
 $tmpl = new RainTPL;
+
+
+if(!getenv('PATH') and isset($ini["system"]["path"]))
+{
+	putenv('PATH='.$ini["system"]["path"]);
+}
+
 

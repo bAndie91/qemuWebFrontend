@@ -1,3 +1,9 @@
+
+{if="$act=='edit'"}
+	<a href="?act=view&name={$vm.name}">view</a>
+	<a href="?act=new&copy={$vm.name}">copy</a>
+{/if}
+
 <div id=qemu_edit>
 <form method=POST>
 	<input type=hidden name=act value="{$act}" />
@@ -9,7 +15,6 @@
 		<td>Name</td>
 		<td>
 			{if="$act=='edit'"}{$vm.name}{else}<input type=text name=name value="{$vm.name}" />{/if}
-			{if="$act=='edit'"}<a href="?act=view&name={$vm.name}">View ...</a>{/if}
 		</td>
 	</tr>
 	<tr>
@@ -17,12 +22,17 @@
 	</tr>
 	{loop="$vm.opt"}
 	<tr>
-		<td><input type=text class="option_key" name=optkey_{$counter} data-counter={$counter} value="{$value.name}" /></td>
-		<td><input type=text class="option_val" name=optval_{$counter} data-counter={$counter} value="{$value.value}" /></td>
+		<td><input type=text class="option_key" name="optkey_{$counter}" data-counter="{$counter}" value="{$value.name}" /></td>
+		<td><input type=text class="option_val" name="optval_{$counter}" data-counter="{$counter}" value="{$value.value}" /></td>
+		<td><button onClick="delOption(this); return false">clr</button></td>
 	</tr>
 	{/loop}
 	</table>
-	<input type=button onClick="addOption();" value="Add Option" />
+	<br/>
+	<a href="?act=help&topic=options" target="_blank">Options Help</a>
+	<br/>
+	<br/>
+	<input type=button onClick="addOption()" value="Add Option" />
 	<br/>
 	<input type=submit name=submit value={if="$act=='edit'"}"Save"{else}"Create"{/if} />
 </form>
@@ -40,6 +50,7 @@ function addOption()
 	
 	var input1 = $('<input type=text />');
 	var input2 = $('<input type=text />');
+	var input3 = $('<button onClick="delOption(this); return false">clr</button>');
 	input1.attr('class', 'option_key');
 	input2.attr('class', 'option_val');
 	input1.attr('name', 'optkey_'+counter);
@@ -50,38 +61,52 @@ function addOption()
 	var row = $('<tr/>');
 	var cell1 = $('<td/>');
 	var cell2 = $('<td/>');
+	var cell3 = $('<td/>');
 	cell1.append(input1);
 	cell2.append(input2);
+	cell3.append(input3);
 	row.append(cell1);
 	row.append(cell2);
+	row.append(cell3);
 	$('table#options').append(row);
 	
 	setupAutoCompleter.call(input1);
 	$(input1).blur(setupAutoCompleter2);
 }
 
+function delOption(btn)
+{
+	$(btn).closest('tr').remove();
+}
+
 function setupAutoCompleter()
 {
-	var a = '';
+	var type = '';
+	var plus = '';
+	var cnt = $(this).data('counter');
+	
 	if($(this).is('.option_key'))
 	{
-		a = 'type=option';
+		type = 'option';
 	}
 	else
 	{
-		var c = $(this).data('counter');
-		var v = $('[name="optkey_' + c + '"]').val();
-		a = 'option=' + v;
+		type = 'parameter';
+		var v = $('[name="optkey_' + cnt + '"]').val();
+		plus = '&option=' + v;
 	}
+	plus += '&type='+type;
 
-	var url = 'index.php?act=autocomplete&name={$vm.name}&' + a;
+	var url = 'index.php?act=autocomplete&name={$vm.name}' + plus;
 	var ac = $(this).data('autocompleter');
 	if(ac == undefined)
 	{
 		$(this).autocomplete({
 			url: url,
+			field_type: type,
+			field_cnt: cnt,
 			remoteDataType: 'json',
-			delay: 800,
+			delay: 700,
 			queryParamName: 's',
 			maxItemsToShow: 0,
 			minChars: 0,
@@ -115,6 +140,14 @@ function acSetItem(item, ac)
 	if(item.data.raw_value != undefined)
 	{
 		ac.setValue(item.data.raw_value);
+	}
+	if(ac.options.field_type == 'option')
+	{
+		var obj = $('.option_val[data-counter=' + ac.options.field_cnt + ']');
+		if(item.data.parameter_spec == '' || item.data.no_parameters)
+			obj.hide();
+		else
+			obj.show();
 	}
 }
 

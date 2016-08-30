@@ -8,8 +8,8 @@
 	width: 500px;
 }
 
-#qemu_list .vm_name,
-#qemu_list .vm_state
+#qemu_list span.vm_name,
+#qemu_list span.vm_state
 {
 	display: inline-block;
 	width: 100px;
@@ -79,3 +79,9 @@
 }
 
 
+
+#refresh_progress,
+#savestate_progress
+{
+	display: none;
+}

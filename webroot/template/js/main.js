@@ -45,6 +45,7 @@ qemu = {
 	refresh_screenshot: function(vmobj, element)
 	{
 		var vmname = vmobj.name;
+		element.progress_indicator.show();
 		
 		this.call({
 			act: "refresh_screenshot",
@@ -52,23 +53,26 @@ qemu = {
 			prev_id: (vmobj.screenshot && vmobj.screenshot.id ? vmobj.screenshot.id : ''),
 		},
 		{
+			vmobj: vmobj,
 			element: element,
 		},
 		function(responseText, textStatus, xhr, json, a)
 		{
+			a.element.progress_indicator.hide();
 			if(json.error && json.error.length > 0)
 			{
 				alert(json.error.join("\n"));
 			}
 			else
 			{
-				qemu.set_screenshot(vmobj, a.element, json);
+				qemu.set_screenshot(a.vmobj, a.element, json);
 			}
 		},
 		function(xhr, a)
 		{
-			a.element.show.hide();
-			a.element.hide.show();
+			a.element.progress_indicator.hide();
+			a.element.screenshot.show.hide();
+			a.element.screenshot.hide.show();
 			alert("screenshot failed");
 		});
 	},
@@ -158,21 +162,25 @@ qemu = {
 		}
 	},
 	
-	act: function(act, param, vmname)
+	act: function(act, param, vmname, callback)
 	{
-		this.call({
-			act: act,
-			name: vmname,
-			param: param,
-		},
-		{},
-		function(responseText, textStatus, xhr, json, a)
-		{
-			if(json.error && json.error.length > 0)
+		var post = param;
+		post.act = act;
+		post.name = vmname || document.qemuvm.name;
+		var args = {mycb: callback};
+		this.call(post, args,
+			function(responseText, textStatus, xhr, json, args)
 			{
-				alert(json.error.join("\n"));
+				if(json.error && json.error.length > 0)
+				{
+					alert(json.error.join("\n"));
+				}
+				else
+				{
+					if(typeof args.mycb == 'function') args.mycb(json);
+				}
 			}
-		});
+		);
 	},
 	
 	refresh_state: function(vmobj, element, param)
@@ -182,11 +190,19 @@ qemu = {
 		var post = {
 			act: 'get',
 			name: vmobj.name,
+			getinfo: {screenshot: 1},
 		};
-		if(param && param.refresh_screenshot)
+		if(param)
 		{
-			post.refresh_screenshot_if_running = true;
-			post.prev_id = (vmobj.screenshot && vmobj.screenshot.id ? vmobj.screenshot.id : '');
+			if(param.refresh_screenshot)
+			{
+				post.refresh_screenshot_if_running = true;
+				post.prev_id = (vmobj.screenshot && vmobj.screenshot.id ? vmobj.screenshot.id : '');
+			}
+			if(param.savestate)
+			{
+				post.getinfo.savestate = 1;
+			}
 		}
 		
 		this.call(
@@ -232,9 +248,32 @@ qemu = {
 					element.enable_on.disable();
 					element.enable_off.enable();
 				}
-	
+				
+				if(json.vm.savestate)
+				{
+					element.savestate_indicator.show();
+					/* Possible values: "active", "completed", "failed", "cancelled" */
+					element.savestate_indicator.find('.status_text').text(json.vm.savestate.status);
+					var max, val;
+					if(json.vm.savestate.status == "completed")
+					{
+						max = 10;
+						val = 10;
+					}
+					else
+					{
+						max = json.vm.savestate.total;
+						val = json.vm.savestate.transferred;
+					}
+					element.savestate_indicator.find('progress').attr('max', max).attr('value', val);
+				}
+				else
+				{
+					element.savestate_indicator.hide();
+				}
+				
 				qemu.set_screenshot(vmobj, element, json);
-	
+				
 				element.progress_indicator.hide();
 			}
 		);

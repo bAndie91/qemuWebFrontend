@@ -1,47 +1,59 @@
-<div id=qemu_view>
+<div id="qemu_view">
 
-State:
+	<a href="?act=edit&name={$vm.name}">edit</a>
+	<a href="?act=view&name={$vm.name}&getinfo[vnc]=1&template=vnc">vnc</a>
+	<a href="?act=view&name={$vm.name}&template=block">disks</a>
+	<br/>
+
+	State:
 	<b>
 	<span class="vmstate_on" style="display: none;">ON</span>
 	<span class="vmstate_off" style="display: none;">OFF</span>
 	</b>
 
 	<span class="vmstate_off" style="display: none;">
-		<input type=button onClick="qemu.act('start', {}, '{$vm.name}'); refresh_state();" value="start" />
+		<button onClick="state_action('start');">start</button>
 	</span>
 	<span class="vmstate_paused" style="display: none;">
-		<input type=button onClick="qemu.act('resume', {}, '{$vm.name}'); refresh_state();" value="resume" />
+		<button onClick="state_action('resume');">resume</button>
 	</span>
 	<span class="vmstate_unpaused" style="display: none;">
-		<input type=button onClick="qemu.act('pause', {}, '{$vm.name}'); refresh_state();" value="pause" />
+		<button onClick="state_action('pause');">pause</button>
 	</span>
 	<span class="vmstate_on" style="display: none;">
-		<input type=button onClick="qemu.act('shutdown', {}, '{$vm.name}'); refresh_state();" value="shutdown" />
-		<input type=button onClick="qemu.act('poweroff', {}, '{$vm.name}'); refresh_state();" value="poweroff" />
-		<input type=button onClick="qemu.act('reset', {}, '{$vm.name}'); refresh_state();" value="reset" />
+		|
+		<button onClick="state_action('savestate')">save state</button>
+		<button onClick="state_action('shutdown')">shut down</button>
+		<button onClick="state_action('poweroff')">power off</button>
+		|
+		<button onClick="state_action('reset')">reset</button>
+		<button onClick="state_action('power_cycle')">power cycle</button>
 	</span>
-	<a href="?act=new&copy={$vm.name}">copy</a>
-	<a href="?act=edit&name={$vm.name}">edit</a>
-	<a href="?act=view&name={$vm.name}&getinfo[vnc]=1&template=vnc">vnc</a>
 	<br/>
 	
-	<input type=button id=btn_refresh value="Refresh" onClick="refresh_state({refresh_screenshot: true});" />
-	<span id="refresh_progress" style="display: none;">dispatching...</span>
+	<div id="savestate_progress">Save state: <span class="status_text"></span> <progress></progress></div>
+	<button id=btn_refresh onClick="refresh_state({refresh_screenshot: true, savestate: $('#savestate_progress').data('shown')})">Refresh</button>
+	<span id="refresh_progress">dispatching...</span>
 <br/>
 
-<div id=preview>
+<div id="preview">
 	<i>Screenshot Time:</i>
-	<span id=screenshot_time>n/a</span>
+	<span id="screenshot_time">n/a</span>
 	
 	<div>
-	<img id=screenshot />
-	<span id=no_screenshot>no preview</span>
+	<img id="screenshot" {if="$vm.screenshot.id"}src='?act=download_screenshot&name={$vm.name}&id={$vm.screenshot.id}'{/if} />
+	<span id="no_screenshot">no preview</span>
 	</div>
 	
 	<div>
-		Typing here goes to VM:<br/>
-		buffer length: <span id=buffer_length>0</span><br/>
+		<h3>Virtual Keyboard</h3>
+		typing timeout: <input type="number" id="in_buffer_timeout" min=0 step=100 value=1000 /> msec,
+		buffer length: <span id="buffer_length">0</span><br/>
 		{include="keyboard"}
+		<br/>
+		<br/>
+		<br/>
+		<br/>
 	</div>
 	<div class=clear></div>
 </div>
@@ -53,10 +65,24 @@ document.qemuvm = { name: '{$vm.name}' };
 document.keyBuffer = [];
 document.modKeys = {alt:false, alt_r:false, altgr:false, altgr_r:false, ctrl:false, ctrl_r:false, meta:false, meta_r:false, shift:false, shift_r:false};
 
+
+function state_action(act)
+{
+	var param = {};
+	if(act == 'savestate')
+	{
+		param.savestate = true;
+		$('#savestate_progress').data('shown', 1);
+	}
+	
+	qemu.act(act, {}, undefined, function(){ refresh_state(param); });
+}
+
 function refresh_state(param)
 {
 	qemu.refresh_state(document.qemuvm, {
 		progress_indicator: $('#refresh_progress'),
+		savestate_indicator: $('#savestate_progress'),
 		
 		state_on: $('.vmstate_on'),
 		state_off: $('.vmstate_off'),
@@ -80,10 +106,9 @@ function refresh_state(param)
 
 function sendKeys()
 {
-	qemu.act("event", {event: "key", keys: document.keyBuffer}, '{$vm.name}');
+	qemu.act("event", {param: {event: "key", keys: document.keyBuffer}}, undefined, function(){ refresh_screenshot(); });
 	document.keyBuffer = [];
 	$('#buffer_length').text(0);
-	refresh_screenshot();
 }
 
 function keyEvent(event)
@@ -93,18 +118,18 @@ function keyEvent(event)
 	if(document.keyTimeout != undefined) clearTimeout(document.keyTimeout);
 	document.keyBuffer.push(event);
 	$('#buffer_length').text( $('#buffer_length').text()*1+1 );
-	document.keyTimeout = setTimeout(sendKeys, 1000);
+	document.keyTimeout = setTimeout(sendKeys, $('#in_buffer_timeout').val()*1);
 }
 
 function specKey(name)
 {
-	var a = {};
-	a.keyName = name;
+	var evnt = {};
+	evnt.keyName = name;
 	for(var mk in document.modKeys)
 	{
-		if(document.modKeys[mk]) a[mk] = 1;
+		if(document.modKeys[mk]) evnt[mk] = 1;
 	}
-	keyEvent(a);
+	keyEvent(evnt);
 	$('#notepad').focus();
 }
 
@@ -125,7 +150,7 @@ function modKey(name, button)
 
 function refresh_screenshot()
 {
-	qemu.refresh_screenshot(document.qemuvm, {screenshot: {img: $('#screenshot'), show: $('#screenshot'), hide: $('#no_screenshot'), time: $('#screenshot_time')}});
+	qemu.refresh_screenshot(document.qemuvm, {screenshot: {img: $('#screenshot'), show: $('#screenshot'), hide: $('#no_screenshot'), time: $('#screenshot_time')}, progress_indicator: $('#refresh_progress')});
 }
 
 $(document).ready(function()
@@ -134,32 +159,33 @@ $(document).ready(function()
 	
 	$('#screenshot').click(function(event)
 	{
-		qemu.act("event", {event: "click", pos: {x: event.offsetX, y: event.offsetY}, button: {left: true}}, '{$vm.name}');
-		refresh_screenshot();
+		qemu.act("event", {param: {event: "click", pos: {x: event.offsetX, y: event.offsetY}, button: {left: true}}}, undefined, function(){ refresh_screenshot(); });
 	});
 
 	$('#notepad').keypress(function(event)
 	{
-		var a = {keyCode: event.keyCode};
+		var evnt = {keyCode: event.keyCode};
 		for(var mk in document.modKeys)
 		{
 			var p = mk + 'Key';
-			if(event[p] || document.modKeys[mk]) a[mk] = 1;
+			if(event[p] || document.modKeys[mk]) evnt[mk] = 1;
 		}
-		keyEvent(a);
+		keyEvent(evnt);
 		
 		if(event.keyCode == 27) this.value = '';
-		if((event.keyCode >= 0x30 && event.keyCode <= 0x39) || 
-		   (event.keyCode >= 0x41 && event.keyCode <= 0x5A) || 
-		   (event.keyCode >= 0x61 && event.keyCode <= 0x7A) ||  // >
-		   event.keyCode == 0x20 ||
-		   event.keyCode == 0x08 || event.keyCode == 0x0D)
-		{
-		}
-		else
-		{
-			event.preventDefault();
-		}
+		/*
+			if((event.keyCode >= 0x30 && event.keyCode <= 0x39) || 
+			   (event.keyCode >= 0x41 && event.keyCode <= 0x5A) || 
+			   (event.keyCode >= 0x61 && event.keyCode <= 0x7A) ||  // >
+			   event.keyCode == 0x20 ||
+			   event.keyCode == 0x08 || event.keyCode == 0x0D)
+			{
+			}
+			else
+			{
+				event.preventDefault();
+			}
+		*/
 	});
 	$('#notepad').focus(function()
 	{

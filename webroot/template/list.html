@@ -1,9 +1,15 @@
 
-<ul id=qemu_list>
+<table id="qemu_list">
+	<tr>
+		<th>Name</th>
+		<th>Status</th>
+		<th>Action</th>
+		<th>Size</th>
+	</tr>
 {loop="machines"}
-	<li>
-		<span class="vm_name">{$value.name}</span>
-		<span class="vm_state">
+	<tr>
+		<td class="vm_name">{$value.name}</td>
+		<td class="vm_state">
 		{if="$value.state.running"}
 			{if="$value.state.paused"}
 				Paused
@@ -13,17 +19,26 @@
 		{else}
 			Stopped
 		{/if}
-		</span>
-		<a href="?act=start&name={$value.name}">start</a>
-		<a href="?act=shutdown&name={$value.name}">shutdown</a>
-		<a href="?act=poweroff&name={$value.name}">poweroff</a>
-		<a href="?act=reset&name={$value.name}">reset</a>
-		<a href="?act=delete&name={$value.name}" onClick="return confirm('Do you want to delete {$value.name}?');">delete</a>
-		<a href="?act=new&copy={$value.name}">copy</a>
-		<a href="?act=edit&name={$value.name}">edit</a>
-		<a href="?act=view&name={$value.name}&getinfo[screenshot]=1">view</a>
-	</li>
+		</td>
+		<td>
+			<a href="?act=start&name={$value.name}">start</a>
+			<a href="?act=restorestate&name={$value.name}">restore</a>
+			|
+			<a href="?act=shutdown&name={$value.name}">shut down</a>
+			<a href="?act=poweroff&name={$value.name}">power off</a>
+			|
+			<a href="?act=reset&name={$value.name}">reset</a>
+			<a href="?act=power_cycle&name={$value.name}">power cycle</a>
+			|
+			<a href="?act=delete&name={$value.name}" onClick="return confirm('Do you want to delete {$value.name}?');">delete</a>
+			<a href="?act=new&copy={$value.name}">copy</a>
+			<a href="?act=edit&name={$value.name}">edit</a>
+			|
+			<a href="?act=view&name={$value.name}">view</a>
+		</td>
+		<td class="vm_size">{$value.diskusage}</td>
+	</tr>
 {else}
-No VM added yet.
+<tr><td colspan=4>No VM added yet.</td></tr>
 {/loop}
-</ul>
+</table>

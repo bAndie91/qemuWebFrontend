@@ -1,8 +1,17 @@
-<div id=qemu_edit_vnc>
+<script>
+$(document).ready(function()
+{
+	click_on_off($('#cb_enable_vnc')[0], $('.fld_vnc'));
+	click_off_on($('#rb_fam_unix')[0], $('.fld_vnc_inet'));
+	click_on_off($('#cb_enable_auth')[0], $('.fld_vnc_auth'));
+});
+</script>
+
 
 	<a href="?act=edit&name={$vm.name}">edit</a>
 	<a href="?act=view&name={$vm.name}">view</a>
 
+<div id="qemu_edit_vnc">
 <form method=POST>
 	<input type=hidden name=name value="{$vm.name}" />
 	<input type=hidden name=act value="change" />
@@ -12,39 +21,56 @@
 	<tr>
 		<th>VNC Access</th>
 		<td>
-			<input type=checkbox name=enable {if="$vm.vnc.enabled"}checked{else}{/if} id=enable_vnc />
-			<label for=enable_vnc>enabled</label>
+			<input type="checkbox" name="enable" onClick="click_on_off(this, $('.fld_vnc'));" {if="$vm.vnc.enabled"}checked="checked"{else}{/if} id="cb_enable_vnc" />
+			<label for="cb_enable_vnc">enabled</label>
 		</td>
 	</tr>
 
 	<tr>
+		<td>socket family</td>
+		<td>
+			<input type="radio" name="family" value="unix" id="rb_fam_unix" class="fld_vnc" onClick="click_off_on(this, $('.fld_vnc_inet'));" {if="$vm.vnc.family=='unix' || $vm.vnc.family==''"}checked="checked"{/if} />
+			<label for="rb_fam_unix">unix</label><br/>
+			<input type="radio" name="family" value="inet" id="rb_fam_inet" class="fld_vnc" onClick="click_on_off(this, $('.fld_vnc_inet'));" {if="$vm.vnc.family!='unix' && $vm.vnc.family!=''"}checked="checked"{/if} />
+			<label for="rb_fam_inet">inet</label><br/>
+		</td>
+	</tr>
+	<tr>
 		<td>listen address</td>
-		<td><input type=text name=host value="{$vm.vnc.host}" /></td>
+		<td><input type="text" name="host" value="{if="$vm.vnc.host==''"}0.0.0.0{else}{$vm.vnc.host}{/if}" class="fld_vnc fld_vnc_inet" /></td>
 	</tr>
 	<tr>
 		<td>listen port</td>
-		<td><input type=number min=5900 max=65535 name=port value="{$vm.vnc.service}" /></td>
-	</tr>
-	{if="$vm.vnc.enabled"}
-		<tr>
-			<td>auth method</td>
-			<td>{$vm.vnc.auth}{if="$vm.vnc.auth=='none'"} <strong>!!</strong>{/if}</td>
-		</tr>
-	{/if}
-	<tr>
-		<td>set password</td>
-		<td><input type=password name=password /> (leave empty to disable authentication)</td>
+		<td><input type="number" min=5900 max=65535 name="port" value="{if="$vm.vnc.service==''"}5900{else}{$vm.vnc.service}{/if}" class="fld_vnc fld_vnc_inet" /></td>
 	</tr>
 	<tr>
 		<td>share</td>
 		<td>
-			<select name=share>
-			<option value="">n/a</option>
+			<select name="share" class="fld_vnc">
+			<option value="">(unknown)</option>
 			<option value="ignore">ignore</option>
 			<option value="force-shared">force-shared</option>
 			<option value="allow-exclusive">allow-exclusive</option>
 			</select>
 		</td>
+	</tr>
+	<tr>
+		<td>authentication</td>
+		<td>
+			<input type="checkbox" name="enable_auth" id="cb_enable_auth" onClick="click_on_off(this, $('.fld_vnc_auth'));" {if="$vm.vnc.auth!='none' && $vm.vnc.auth!=''"}checked="checked"{/if} class="fld_vnc" />
+			<label for="cb_enable_auth">require</label>
+		</td>
+	</tr>
+	{if="$vm.vnc.enabled"}
+		<tr>
+			<td>method</td>
+			<td>{$vm.vnc.auth}</td>
+		</tr>
+	{/if}
+	<tr>
+		<td>password</td>
+		<td><input type="password" name="password" class="fld_vnc fld_vnc_auth" />
+		<small>(empty field will left password unchanged)</small></td>
 	</tr>
 	<tr>
 		<td colspan=2>
@@ -67,8 +93,14 @@
 	{/loop}
 	</table>
 	
-	{if="$vm.vnc.enabled and isset($vm.vnc.relative_address)"}
-		<a href="vnc://{$vm.vnc.relative_address}::{$vm.vnc.service}">Open VNC Viewer</a><br/>
+	{if="$vm.vnc.enabled"}
+	<h3>Viewer Softwares</h3>
+	<ul>
+		<li><a href="?act=novnc&name={$vm.name}">noVNC</a></li>
+		{if="isset($vm.vnc.relative_address)"}
+		<li><a href="vnc://{$vm.vnc.relative_address}::{$vm.vnc.service}">Installed VNC Viewer</a></li>
+		{/if}
+	</ul>
 	{/if}
 </form>
 </div>
