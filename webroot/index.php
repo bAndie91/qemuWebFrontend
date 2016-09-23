@@ -675,7 +675,7 @@ if($run_action)
 	case "autocomplete":
 		$ExpectedContentType = "autocompleter";
 		
-		$tmplvar["lines"] = runAutoComplete($ini, $_REQUEST["s"], @$_REQUEST["type"], @$_REQUEST["option"]);
+		$tmplvar["lines"] = runAutoComplete($ini, $vmname, $_REQUEST["s"], @$_REQUEST["type"], @$_REQUEST["option"]);
 	break;
 	case "options_default":
 		$tmplvar["options"] = qemu_load_opt("./options_default");
@@ -684,13 +684,13 @@ if($run_action)
 		$tmplvar["content_tmpl"] = "raw";
 		$tmplvar["page"]["h1"] = "Help";
 		
-		$tmplvar["page"]["content"] = "<h2>Options</h2>\n";
-		$tmplvar["page"]["content"] .= "<ul>\n";
+		$tmplvar["page"]["content"] = "<table class='upperleft'>\n";
+		$tmplvar["page"]["content"] .= "<tr><th>Option</th><th>Definition</th></tr>\n";
 		foreach($ini["option_type"] as $opt => $optdef)
 		{
-			$tmplvar["page"]["content"] .= "<li>$opt</li>\n";
+			$tmplvar["page"]["content"] .= "<tr><td>$opt</td><td><pre>$optdef</pre></td></tr>\n";
 		}
-		$tmplvar["page"]["content"] .= "</ul>\n";
+		$tmplvar["page"]["content"] .= "</table>\n";
 	break;
 	default:
 		if($is_xhr)
