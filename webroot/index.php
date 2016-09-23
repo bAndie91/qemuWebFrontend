@@ -287,10 +287,17 @@ if($run_action)
 		$reply = qemu_single_cmd($ini, $prm, $execute);
 		if($reply !== false)
 		{
-			$Redirect = array(
-				"act" => "view",
-				"name" => $vmname,
-			);
+			if($Action == "poweroff")
+			{
+				$Redirect = array("act" => "list");
+			}
+			else
+			{
+				$Redirect = array(
+					"act" => "view",
+					"name" => $vmname,
+				);
+			}
 			if(isset($reply['return']))
 			{
 				$Redirect["msg"] = $redirect_msg;
@@ -645,12 +652,33 @@ if($run_action)
 		$tmplvar["content_tmpl"] = "list";
 		$tmplvar["page"]["h1"] = "Machines";
 		
-		$tmplvar["machines"] = qemu_load($ini, NULL, array("opts"=>false, "state"=>true, "diskusage"=>true));
+		$tmplvar["machines"] = qemu_load($ini, NULL, array("opts"=>false, "state"=>true, "diskusage"=>true, "memusage"=>true));
+		$diskusages = array_map(function($a){ return $a["diskusage"]; }, $tmplvar["machines"]);
+		foreach(explode(',', "rss,sz,vsz") as $memtype) $memusages[$memtype] = array_map(function($a)use($memtype){ return $a["memusage"][$memtype]; }, $tmplvar["machines"]);
+		$tmplvar["total"] = array(
+			"disk" => array_sum($diskusages),
+			"mem" => array(
+				"rss" => array_sum($memusages["rss"]),
+				"sz" => array_sum($memusages["sz"]),
+				"vsz" => array_sum($memusages["vsz"]),
+			),
+		);
+		$tmplvar["max"] = array(
+			"disk" => max($diskusages),
+			"mem" => array(
+				"rss" => max($memusages["rss"]),
+				"sz" => max($memusages["sz"]),
+				"vsz" => max($memusages["vsz"]),
+			),
+		);
 	break;
 	case "autocomplete":
 		$ExpectedContentType = "autocompleter";
 		
 		$tmplvar["lines"] = runAutoComplete($ini, $_REQUEST["s"], @$_REQUEST["type"], @$_REQUEST["option"]);
+	break;
+	case "options_default":
+		$tmplvar["options"] = qemu_load_opt("./options_default");
 	break;
 	case "help":
 		$tmplvar["content_tmpl"] = "raw";

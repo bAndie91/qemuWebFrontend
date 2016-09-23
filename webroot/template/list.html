@@ -4,6 +4,7 @@
 		<th>Name</th>
 		<th>Status</th>
 		<th>Action</th>
+		<th>Memory Usage</th>
 		<th>Size</th>
 	</tr>
 {loop="machines"}
@@ -36,7 +37,16 @@
 			|
 			<a href="?act=view&name={$value.name}">view</a>
 		</td>
-		<td class="vm_size">{$value.diskusage}</td>
+		<td class="vm_memusage">
+			{if="$value.state.running"}
+				<progress value="{$value.memusage.vsz}" max="{$max.mem.vsz}" title="{$value.memusage.vsz}">{$value.memusage.vsz}</progress>
+			{else}
+				<progress value="0" max="{$max.mem.vsz}">not running</progress>
+			{/if}
+		</td>
+		<td class="vm_size">
+			<progress value="{$value.diskusage}" max="{$max.disk}" title="{$value.diskusage}">{$value.diskusage}</progress>
+		</td>
 	</tr>
 {else}
 <tr><td colspan=4>No VM added yet.</td></tr>

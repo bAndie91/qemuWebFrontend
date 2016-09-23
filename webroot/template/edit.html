@@ -39,7 +39,7 @@
 </div>
 
 <script type="text/javascript">
-function addOption()
+function addOption(after, keyname, valname)
 {
 	var counter = 0;
 	$('[data-counter]').each(function()
@@ -58,6 +58,9 @@ function addOption()
 	input1.attr('data-counter', counter);
 	input2.attr('data-counter', counter);
 	
+	if(keyname != undefined) input1.val(keyname);
+	if(valname != undefined) input2.val(valname);
+	
 	var row = $('<tr/>');
 	var cell1 = $('<td/>');
 	var cell2 = $('<td/>');
@@ -68,7 +71,10 @@ function addOption()
 	row.append(cell1);
 	row.append(cell2);
 	row.append(cell3);
-	$('table#options').append(row);
+	if(after >= 0)
+		row.insertAfter($('[name="optkey_' + after + '"]').parents('tr'));
+	else
+		$('table#options').append(row);
 	
 	setupAutoCompleter.call(input1);
 	$(input1).blur(setupAutoCompleter2);
@@ -145,9 +151,22 @@ function acSetItem(item, ac)
 	{
 		var obj = $('.option_val[data-counter=' + ac.options.field_cnt + ']');
 		if(item.data.parameter_spec == '' || item.data.no_parameters)
+		{
 			obj.hide();
+		}
 		else
+		{
 			obj.show();
+			if(window.options_default != undefined && window.options_default[item.value] != undefined)
+			{
+				var values = window.options_default[item.value];
+				obj.val(values[0]);
+				for(var idx = 1; values.length > idx; idx++)
+				{
+					addOption(ac.options.field_cnt, item.value, values[idx]);
+				}
+			}
+		}
 	}
 }
 
@@ -155,5 +174,9 @@ $(document).ready(function()
 {
 	$('input[type="text"]').each(setupAutoCompleter);
 	$('input[type="text"].option_key').blur(setupAutoCompleter2);
+	$.get('index.php?act=options_default', undefined, function(data)
+	{
+		window.options_default = data.options;
+	},'json');
 });
 </script>

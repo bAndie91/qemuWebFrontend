@@ -64,6 +64,10 @@ function qemu_load($ini, $vmname = NULL, $load = array())
 			{
 				$vmlist[$entry]["diskusage"] = du("$dir/$entry");
 			}
+			if(@$load["memusage"])
+			{
+				$vmlist[$entry]["memusage"] = qemu_psmem($ini, $prm);
+			}
 			if(@$load["migrate"])
 			{
 				$vmlist[$entry]["savestate"] = qemu_info_migrate($ini, $prm);
@@ -195,6 +199,36 @@ function qemu_running($ini, $prm)
 	return $status["running"];
 }
 
+function qemu_psmem($ini, $prm)
+{
+	$usage = array(
+		"rss" => 0,
+		"sz" => 0,
+		"vsz" => 0,
+	);
+	$dir = $ini['qemu']['machine_dir']."/".$prm['machine']["name"];
+	
+	$cmd = execve("lsof", array("-n", "-Fp", "$dir/qmp.sock"));
+	if($cmd["code"] == 0)
+	{
+		if(preg_match('/^p(\d+)/', $cmd["stdout"], $m))
+		{
+			$pid = $m[1];
+			$cmd = execve("ps", array("-p", $pid, "-o", "rss=,sz=,vsz="));
+			if($cmd["code"] == 0)
+			{
+				if(preg_match('/^\s*(\d+)\s+(\d+)\s+(\d+)/', $cmd["stdout"], $m))
+				{
+					$usage["rss"] = $m[1];
+					$usage["sz"] = $m[2];
+					$usage["vsz"] = $m[3];
+				}
+			}
+		}
+	}
+	return $usage;
+}
+
 function qemu_vmstate($ini, $prm)
 {
 	$running = false;
@@ -223,7 +257,7 @@ function qemu_vmstate($ini, $prm)
 		}
 		else
 		{
-			$cmd = execve("lsof", array("-n", "-Fpc", "./qmp.sock"));
+			$cmd = execve("lsof", array("-n", "-Fpc", "$dir/qmp.sock"));
 			if($cmd["code"] == 0)
 			{
 				foreach(explode("\n", $cmd["stdout"]) as $line)

@@ -85,3 +85,11 @@
 {
 	display: none;
 }
+
+progress
+{
+	appearance: none;
+	-moz-appearance: none;
+	-o-appearance: none;
+	-webkit-appearance: none;
+}
