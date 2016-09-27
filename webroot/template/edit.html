@@ -14,19 +14,12 @@
 	<tr>
 		<td>Name</td>
 		<td>
-			{if="$act=='edit'"}{$vm.name}{else}<input type=text name=name value="{$vm.name}" />{/if}
+			<input type=text name=new_name value="{$vm.name}" class="nocomplete" onChange="$('.renaming').show()" />
 		</td>
 	</tr>
 	<tr>
 		<td colspan=2>Options</td>
 	</tr>
-	{loop="$vm.opt"}
-	<tr>
-		<td><input type=text class="option_key" name="optkey_{$counter}" data-counter="{$counter}" value="{$value.name}" /></td>
-		<td><input type=text class="option_val" name="optval_{$counter}" data-counter="{$counter}" value="{$value.value}" /></td>
-		<td><button onClick="delOption(this); return false">clr</button></td>
-	</tr>
-	{/loop}
 	</table>
 	<br/>
 	<a href="?act=help&topic=options" target="_blank">Options Help</a>
@@ -34,11 +27,14 @@
 	<br/>
 	<input type=button onClick="addOption()" value="Add Option" />
 	<br/>
-	<input type=submit name=submit value={if="$act=='edit'"}"Save"{else}"Create"{/if} />
+	<input type=submit name=save value={if="$act=='edit'"}"Save"{else}"Create"{/if} />
+	<div class="renaming" style="display: none;"><span style="color: orange;">VM is going to be renamed!</span></div>
 </form>
 </div>
 
 <script type="text/javascript">
+document.qemuvm = { name: '{$vm.name}' };
+
 function addOption(after, keyname, valname)
 {
 	var counter = 0;
@@ -58,8 +54,13 @@ function addOption(after, keyname, valname)
 	input1.attr('data-counter', counter);
 	input2.attr('data-counter', counter);
 	
-	if(keyname != undefined) input1.val(keyname);
-	if(valname != undefined) input2.val(valname);
+	if(keyname != undefined)
+		input1.val(keyname);
+	if(valname != undefined)
+		if(valname == '')
+			input2.hide();
+		else
+			input2.val(valname);
 	
 	var row = $('<tr/>');
 	var cell1 = $('<td/>');
@@ -85,98 +86,18 @@ function delOption(btn)
 	$(btn).closest('tr').remove();
 }
 
-function setupAutoCompleter()
-{
-	var type = '';
-	var plus = '';
-	var cnt = $(this).data('counter');
-	
-	if($(this).is('.option_key'))
-	{
-		type = 'option';
-	}
-	else
-	{
-		type = 'parameter';
-		var v = $('[name="optkey_' + cnt + '"]').val();
-		plus = '&option=' + v;
-	}
-	plus += '&type='+type;
-
-	var url = 'index.php?act=autocomplete&name={$vm.name}' + plus;
-	var ac = $(this).data('autocompleter');
-	if(ac == undefined)
-	{
-		$(this).autocomplete({
-			url: url,
-			field_type: type,
-			field_cnt: cnt,
-			remoteDataType: 'json',
-			delay: 700,
-			queryParamName: 's',
-			maxItemsToShow: 0,
-			minChars: 0,
-			mustMatch: false,
-			filterResults: false,
-			cellSeparator: null,
-			useCache: false,
-			delimiterKeyCode: 0,
-			preventDefaultTab: true,
-			sortResults: false,
-			onItemSelect: acSetItem,
-		});
-	}
-	else
-	{
-		ac.options.url = url;
-	}
-}
-
-function setupAutoCompleter2()
-{
-	var c = $(this).data('counter');
-	$('[name="optval_' + c + '"]').each(function()
-	{
-		setupAutoCompleter.call(this);
-	});
-}
-
-function acSetItem(item, ac)
-{
-	if(item.data.raw_value != undefined)
-	{
-		ac.setValue(item.data.raw_value);
-	}
-	if(ac.options.field_type == 'option')
-	{
-		var obj = $('.option_val[data-counter=' + ac.options.field_cnt + ']');
-		if(item.data.parameter_spec == '' || item.data.no_parameters)
-		{
-			obj.hide();
-		}
-		else
-		{
-			obj.show();
-			if(window.options_default != undefined && window.options_default[item.value] != undefined)
-			{
-				var values = window.options_default[item.value];
-				obj.val(values[0]);
-				for(var idx = 1; values.length > idx; idx++)
-				{
-					addOption(ac.options.field_cnt, item.value, values[idx]);
-				}
-			}
-		}
-	}
-}
-
 $(document).ready(function()
 {
-	$('input[type="text"]').each(setupAutoCompleter);
-	$('input[type="text"].option_key').blur(setupAutoCompleter2);
 	$.get('index.php?act=options_default', undefined, function(data)
 	{
 		window.options_default = data.options;
 	},'json');
+	
+	{loop="$vm.opt"}
+	addOption(undefined, '{$value.name}', '{$value.value}');
+	{/loop}
+	
+	$('#options input[type="text"]:not(.nocomplete)').each(setupAutoCompleter);
+	$('#options input[type="text"].option_key').blur(setupAutoCompleter2);
 });
 </script>

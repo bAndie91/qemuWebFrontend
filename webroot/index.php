@@ -54,18 +54,21 @@ switch($Action)
 case "delete":
 case "power_cycle":
 case "start":
+case "restorestate":
 case "shutdown":
 case "poweroff":
 case "reset":
 case "pause":
 case "resume":
-case "start":
+case "savestate":
+case "get":
 case "view":
+case "novnc":
 case "change":
+case "eject":
 case "event":
 case "refresh_screenshot":
 case "download_screenshot":
-case "get":
 	if(!isset($vmname))
 	{
 		add_error("invalid name");
@@ -81,39 +84,61 @@ if($run_action)
 	case "new":
 	case "edit":
 		$act_ok = false;
-
-		if(isset($_REQUEST["submit"]))
+		
+		if(isset($_REQUEST["save"]))
 		{
 			if(isset($vmname))
 			{
-				$opt = array();
-				foreach($_REQUEST as $key => $val)
+				$act_rename_ok = true;
+				$new_vmname = @$_REQUEST["new_name"];
+				if(isset($new_vmname) and $vmname != $new_vmname)
 				{
-					if(preg_match('/^opt(key|val)_(\d+)$/', $key, $m))
+					$act_rename_ok = false;
+					if(is_vmname($new_vmname))
 					{
-						$opt[$m[2]][$m[1]] = $val;
+						if(qemu_rename($ini, $vmname, $new_vmname))
+						{
+							$vmname = $new_vmname;
+							$act_rename_ok = true;
+						}
+					}
+					else
+					{
+						add_error("invalid new name");
 					}
 				}
-				$options = array();
-				foreach($opt as $a)
-				{
-					if($a["key"]=="") continue;
-					$options[$a["key"]][] = $a["val"];
-				}
-				$prm = array(
-					"machine" => array(
-						"name" => $vmname,
-						"opt" => $options,
-					),
-				);
 				
-				if($Action == "edit")
+				if($act_rename_ok)
 				{
-					$act_ok = qemu_save_opt($ini, $prm);
-				}
-				else
-				{
-					$act_ok = qemu_new($ini, $prm);
+					$opt = array();
+					foreach($_REQUEST as $key => $val)
+					{
+						if(preg_match('/^opt(key|val)_(\d+)$/', $key, $m))
+						{
+							$opt[$m[2]][$m[1]] = $val;
+						}
+					}
+					$options = array();
+					foreach($opt as $a)
+					{
+						if($a["key"]=="") continue;
+						$options[$a["key"]][] = $a["val"];
+					}
+					$prm = array(
+						"machine" => array(
+							"name" => $vmname,
+							"opt" => $options,
+						),
+					);
+					
+					if($Action == "edit")
+					{
+						$act_ok = qemu_save_opt($ini, $prm);
+					}
+					else
+					{
+						$act_ok = qemu_new($ini, $prm);
+					}
 				}
 			}
 			else
@@ -184,7 +209,7 @@ if($run_action)
 				$prm['machine']['opt'][$key] = $values;
 			}
 		}
-
+		
 		if($act_ok)
 		{
 			$Redirect = array(
@@ -196,6 +221,10 @@ if($run_action)
 		else
 		{
 			$tmplvar["vm"] = array();
+			if(!isset($prm))
+				$prm = array(
+					"machine" => qemu_load($ini, $vmname, array("opts"=>true)),
+				);
 			$tmplvar["vm"]["name"] = $prm['machine']['name'];
 			ksort($prm['machine']['opt']);
 			foreach($prm['machine']['opt'] as $opt_name => $opts)
@@ -392,10 +421,13 @@ if($run_action)
 			$prm['machine']['vnc'] = qemu_info_vnc($ini, $prm);
 		}
 		
-		if(isset($_REQUEST["getinfo"]["block"]))
+		foreach(explode(',', "cpus,pci,chardev,block") as $typ)
 		{
-			$reply = qemu_single_cmd($ini, $prm, "query-block");
-			$prm['machine']['block'] = $reply["return"];
+			if(isset($_REQUEST["getinfo"][$typ]))
+			{
+				$reply = qemu_single_cmd($ini, $prm, "query-".$typ);
+				$prm['machine'][$typ] = $reply["return"];
+			}
 		}
 		
 		if(isset($_REQUEST["getinfo"]["screenshot"]))
@@ -506,14 +538,61 @@ if($run_action)
 				$Messages[] = "VNC settings changed";
 			}
 			$prm['machine']['vnc'] = qemu_info_vnc($ini, $prm);
-
+			
 			$tmplvar["vm"] = $prm['machine'];
 			$tmplvar["content_tmpl"] = "vnc";
 			$tmplvar["page"]["h1"] = "View";
 		break;
+		case "disk":
+			$prm = array(
+				"name" => $vmname,
+				"machine" => qemu_load($ini, $vmname),
+			);
+			$reply = qemu_single_cmd($ini, $prm, "change", array("device"=>$_REQUEST["device"], "target"=>$_REQUEST["target"]));
+			$tmplvar['change']['reply'] = $reply;
+			if(!is_array($reply['return']))
+			{
+				add_error(qmp_error_to_string($reply['error']));
+			}
+		break;
 		default:
 			add_error("not yet supported");
 		}
+	break;
+	case "eject":
+		$devname = $_REQUEST["devname"];
+		if(!isset($devname))
+			foreach($_REQUEST as $key => $val)
+			{
+				if(preg_match('/^devname_(\S+)$/', $key, $m))
+				{
+					$devname = $m[1];
+					break;
+				}
+			}
+		$ok = false;
+		if(isset($devname))
+		{
+			$prm = array(
+				"machine" => array(
+					"name" => $vmname,
+				),
+			);
+			$reply = qemu_single_cmd($ini, $prm, "eject", array("device" => $devname));
+			if(is_array(@$reply['return']))
+			{
+				$ok = true;
+			}
+			else
+			{
+				add_error(qmp_error_to_string($reply['error']));
+			}
+		}
+		else
+		{
+			add_error("device name is missing");
+		}
+		$tmplvar['eject']['result'] = $ok;
 	break;
 	case "event":
 		$prm = array(

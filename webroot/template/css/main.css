@@ -93,3 +93,9 @@ progress
 	-o-appearance: none;
 	-webkit-appearance: none;
 }
+
+table.upperleft th, table.upperleft td
+{
+	text-align: left;
+	vertical-align: top;
+}

@@ -37,6 +37,25 @@ function qemu_delete($ini, $prm)
 	return true;
 }
 
+function qemu_rename($ini, $oldname, $newname)
+{
+	$prm_old = array('machine'=>array('name'=>$oldname));
+	if(qemu_running($ini, $prm_old))
+	{
+		add_error("old VM is running");
+		return false;
+	}
+	
+	if(qemu_load($ini, $newname))
+	{
+		add_error("new VM already exists");
+		return false;
+	}
+	
+	$ok = rename($ini['qemu']['machine_dir'].'/'.$oldname, $ini['qemu']['machine_dir'].'/'.$newname);
+	return $ok;
+}
+
 function qemu_load($ini, $vmname = NULL, $load = array())
 {
 	$vmlist = array();
@@ -529,7 +548,7 @@ function qmp_error_to_string($error)
 		$str = $error['class'].": ".$error['desc'];
 		if(@$error['data'])
 		{
-			$str .= "; ".$error['data'];
+			$str .= "; ".json_encode($error['data']);
 		}
 	}
 	else

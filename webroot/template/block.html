@@ -1,0 +1,19 @@
+<script type="text/javascript">
+document.qemuvm = { name: '{$vm.name}' };
+
+$(document).ready(function()
+{
+	qemu.act('view', {getinfo: {block: 1}}, undefined, function(json)
+	{
+		// TODO: error handle
+		$('#block_info').append(json2ul(json.vm.block));
+	});
+});
+</script>
+
+<div>
+	<a href="?act=edit&name={$vm.name}">edit</a>
+	<a href="?act=view&name={$vm.name}">view</a>
+
+	<div id="block_info"></div>
+</div>

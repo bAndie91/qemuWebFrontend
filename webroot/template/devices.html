@@ -1,0 +1,96 @@
+<script type="text/javascript">
+document.qemuvm = { name: '{$vm.name}' };
+
+function load_devices(types)
+{
+	qemu.act('view', {getinfo: types}, undefined, function(json)
+	{
+		// TODO: error handle
+		for(typ in types)
+		{
+			$('#info_' + typ + '> *').remove();
+			$('#info_' + typ).append(json2ul(json.vm[typ]));
+		}
+		
+		$('#info_block > ul > li > ul').each(function(n, ul)
+		{
+			var ul = $(ul);
+			var devname;
+			ul.find('> li').each(function(n, li)
+			{
+				var li = $(li);
+				var m = li.text().match(/device\s*=>\s*(\S+)/)
+				if(m)
+				{
+					devname = m[1];
+				}
+			});
+			if(devname)
+			{
+				var btn_eject = $('<input type=button value="eject" />');
+				var btn_change = $('<input type=button value="change" />');
+				var entry_change = $('<input type=text class="ac_path" />');
+				
+				btn_eject.click(function()
+				{
+					qemu.act('eject', {devname: devname}, undefined, function(json)
+					{
+						load_devices({block: 1});
+					});
+				});
+				btn_change.click(function()
+				{
+					var target = entry_change.val();
+					if(target)
+					{
+						qemu.act('change', {change: 'disk', device: devname, target: target}, undefined, function(json)
+						{
+							load_devices({block: 1});
+						});
+					}
+					else
+					{
+						alert("New disk/image path is not set.");
+					}
+				});
+				setupAutoCompleter.call(entry_change);
+				
+				$(btn_eject).insertBefore(ul);
+				$(btn_change).insertBefore(ul);
+				$(entry_change).insertBefore(ul);
+			}
+		});
+	});
+}
+
+$(document).ready(function()
+{
+	load_devices({cpus: 1, pci: 1, chardev: 1, block: 1});
+});
+</script>
+
+<div>
+	<a href="?act=edit&name={$vm.name}">edit</a>
+	<a href="?act=view&name={$vm.name}">view</a>
+	|
+	<a href="#a_cpus">cpu</a>
+	<a href="#a_pci">pci</a>
+	<a href="#a_chardev">chardev</a>
+	<a href="#a_block">blockdev</a>
+	
+	<a name="a_cpus" />
+	<h3>CPU</h3>
+	<div id="info_cpus"></div>
+
+	<a name="a_pci" />
+	<h3>PCI</h3>
+	<div id="info_pci"></div>
+
+	<a name="a_chardev" />
+	<h3>Chardev</h3>
+	<div id="info_chardev"></div>
+	
+	<a name="a_block" />
+	<h3>Blockdev</h3>
+	<div id="info_block"></div>
+</div>
