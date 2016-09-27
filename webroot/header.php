@@ -24,6 +24,14 @@ if(!preg_match('/\/$/', $ini["qemu"]["raintpl_cache_dir"]))
 {
 	$ini["qemu"]["raintpl_cache_dir"] .= "/";
 }
+if(preg_match('/^(?:\.\.\/)+(.+)/', $ini["qemu"]["raintpl_cache_dir"], $grp))
+{
+	/* Qualify relative path manually avoiding unneccessary symlink resolving. */
+	$pwd = dirname($_SERVER['SCRIPT_FILENAME']);
+	$dirs = explode('/', $pwd);
+	$dir = implode('/', array_slice($dirs, 0, -substr_count($ini["qemu"]["raintpl_cache_dir"], '../')));
+	$ini["qemu"]["raintpl_cache_dir"] = $dir . '/' . $grp[1];
+}
 if(!is_dir($ini["qemu"]["raintpl_cache_dir"]))
 {
 	$ok = mkdir($ini["qemu"]["raintpl_cache_dir"]);
@@ -44,5 +52,3 @@ if(!getenv('PATH') and isset($ini["system"]["path"]))
 {
 	putenv('PATH='.$ini["system"]["path"]);
 }
-
-
