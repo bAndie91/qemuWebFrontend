@@ -99,3 +99,9 @@ table.upperleft th, table.upperleft td
 	text-align: left;
 	vertical-align: top;
 }
+
+
+span.unavailable
+{
+	color: gray;
+}

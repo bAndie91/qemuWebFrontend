@@ -70,6 +70,7 @@ function qemu_load($ini, $vmname = NULL, $load = array())
 			if(isset($vmname) and $vmname != $entry) continue;
 			$vmlist[$entry]["name"] = $entry;
 			$prm = array('machine' => $vmlist[$entry]);
+			$vmlist[$entry]["saved_state"] = file_exists("$dir/$entry/state.xz");
 			if(@$load["opts"])
 			{
 				$vmlist[$entry]["opt"] = qemu_load_opt("$dir/$entry/options");

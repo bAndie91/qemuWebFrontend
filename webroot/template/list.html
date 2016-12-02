@@ -23,7 +23,11 @@
 		</td>
 		<td>
 			<a href="?act=start&name={$value.name}">start</a>
-			<a href="?act=restorestate&name={$value.name}">restore</a>
+			{if="$value.saved_state"}
+				<a href="?act=restorestate&name={$value.name}">restore</a>
+			{else}
+				<span class="unavailable">restore</span>
+			{/if}
 			|
 			<a href="?act=shutdown&name={$value.name}">shut down</a>
 			<a href="?act=poweroff&name={$value.name}">power off</a>
