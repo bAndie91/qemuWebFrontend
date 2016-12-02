@@ -27,8 +27,16 @@
 	<br/>
 	<input type=button onClick="addOption()" value="Add Option" />
 	<br/>
-	<input type=submit name=save value={if="$act=='edit'"}"Save"{else}"Create"{/if} />
-	<div class="renaming" style="display: none;"><span style="color: orange;">VM is going to be renamed!</span></div>
+	{if="$act=='edit'"}
+		<input type=submit name=save value="Save"/>
+	{else}
+		<input type=submit name=save value="Create"/>
+	{/if}
+	<div class="renaming" style="display: none;">
+		{if="$act=='edit'"}
+		<span style="color: orange;">VM is going to be renamed!</span>
+		{/if}
+	</div>
 </form>
 </div>
 

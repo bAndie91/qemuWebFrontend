@@ -51,6 +51,7 @@ if(is_vmname(@$_REQUEST["name"]))
 
 switch($Action)
 {
+case "edit":
 case "delete":
 case "power_cycle":
 case "start":
@@ -87,24 +88,17 @@ if($run_action)
 		
 		if(isset($_REQUEST["save"]))
 		{
-			if(isset($vmname))
+			if(is_vmname(@$_REQUEST["new_name"]))
 			{
+				$new_vmname = $_REQUEST["new_name"];
 				$act_rename_ok = true;
-				$new_vmname = @$_REQUEST["new_name"];
-				if(isset($new_vmname) and $vmname != $new_vmname)
+				if($vmname != $new_vmname)
 				{
 					$act_rename_ok = false;
-					if(is_vmname($new_vmname))
+					if(qemu_rename($ini, $vmname, $new_vmname))
 					{
-						if(qemu_rename($ini, $vmname, $new_vmname))
-						{
-							$vmname = $new_vmname;
-							$act_rename_ok = true;
-						}
-					}
-					else
-					{
-						add_error("invalid new name");
+						$vmname = $new_vmname;
+						$act_rename_ok = true;
 					}
 				}
 				
@@ -143,7 +137,7 @@ if($run_action)
 			}
 			else
 			{
-				add_error("invalid name");
+				add_error("invalid new name");
 			}
 		}
 		else
