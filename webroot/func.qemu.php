@@ -96,7 +96,15 @@ function qemu_load($ini, $vmname = NULL, $load = array())
 	}
 	@closedir($dh);
 	
-	if(isset($vmname)) return $vmlist[$vmname];
+	if(isset($vmname))
+	{
+		if(isset($vmlist[$vmname]))
+			return $vmlist[$vmname];
+		else
+			//stderr(print_r(debug_backtrace(), true));
+			throw new Exception();
+		return NULL;
+	}
 	return $vmlist;
 }
 

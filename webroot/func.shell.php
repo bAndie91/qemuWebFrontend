@@ -8,6 +8,7 @@ function rmdir_recursive($dir)
 	while(($entry = readdir($dh)) !== false)
 	{
 		if($entry == '.' or $entry == '..') continue;
+		// BEWARE the MountPoints!
 		if(is_dir("$dir/$entry"))
 		{
 			$ok = rmdir_recursive("$dir/$entry");

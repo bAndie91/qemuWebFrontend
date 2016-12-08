@@ -83,6 +83,7 @@ if($run_action)
 	switch($Action)
 	{
 	case "new":
+		$vmname = @$_REQUEST["new_name"];
 	case "edit":
 		$act_ok = false;
 		

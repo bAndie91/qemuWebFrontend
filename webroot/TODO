@@ -1,0 +1,60 @@
+- frontend
+	- ajax.fail -> show http status code+message
+	- view
+		- save buffer_timeout to cookie
+	- if config was changed: suggest "power cycle" instead of "reset"
+
+- VM editor
+	- LOCKING
+	- copy VM
+		- copy image files too
+	- new VM
+		- link to iso/ directory
+		- disk size
+
+	
+- screenshot
+	delete old images
+	resize
+	- send click event only to absolute pointer device (eg. tablet)
+	
+- disk creator
+	create snapshot
+		qemu-img snapshot -c telepitve hda.qcow2
+	view snapshots
+		qemu-img snapshot -l hda.qcow2
+	size at create
+	resize
+	
+- network
+	tap:
+		ip tuntap add dev tapNN mode tap user vmrunner
+	bridged
+	NAT-ed
+
+- vnc
+	- append socket path after "unix:" in startup config
+	
+- autocompleter
+	- net options
+	- options
+		- last comma
+	- paths
+		- pseudo chroot
+
+- device tree
+	- pci
+		- add
+		- del
+	- network
+	   - set link
+	
+
+- callback when a vm is started
+
+- select arch:
+	qemu-system-$ARCH
+	eg: qemu-system-arm
+
+- Save State:
+	- not save the disk (eg. VMDK)

@@ -92,6 +92,7 @@ function qemu_start($ini, $prm)
 					if(isset($prm['machine']['hda_size'])) $hda_size = $prm['machine']['hda_size'];
 					if(!file_exists($hda_file))
 					{
+						// TODO - image type
 						$umask = umask();
 						umask(0007);
 						$cmd = execve("qemu-img", array("create", "-f", "qcow2", $hda_file, $hda_size));
