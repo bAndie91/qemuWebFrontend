@@ -9,9 +9,9 @@
 
 ## Screenshots
 
-![config-vnc](screenshot/config-vnc.png)
+![vm-list](screenshot/vm-list.png)
 ![console](screenshot/console.png)
 ![edit-config-autocomplete-file](screenshot/edit-config-autocomplete-file.png)
 ![edit-config-autocomplete-vnc](screenshot/edit-config-autocomplete-vnc.png)
+![config-vnc](screenshot/config-vnc.png)
 ![inspect-devices](screenshot/inspect-devices.png)
-![vm-list](screenshot/vm-list.png)
