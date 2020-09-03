@@ -15,3 +15,6 @@
 ![edit-config-autocomplete-vnc](screenshot/edit-config-autocomplete-vnc.png)
 ![config-vnc](screenshot/config-vnc.png)
 ![inspect-devices](screenshot/inspect-devices.png)
+
+# issues
+Please submit issues via PR to some file `issue/TITLE.txt`.
