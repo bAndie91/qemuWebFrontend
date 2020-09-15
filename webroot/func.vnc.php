@@ -47,6 +47,7 @@ function mk_novnc_url($ini, $prm, $url_tmp)
 			"{path}",
 			"{key}",
 			"{redir_failed}",
+			"{go_back_url}",
 		), 
 		array(
 			$_SERVER['HTTP_HOST'],
@@ -54,6 +55,7 @@ function mk_novnc_url($ini, $prm, $url_tmp)
 			$GLOBALS['ini']["webserver"]["ws_path"],
 			$key,
 			urlencode($_SERVER['REQUEST_SCHEME'].'://'.$_SERVER['HTTP_HOST'].$_SERVER['REQUEST_URI']),
+			urlencode($_SERVER['REQUEST_SCHEME'].'://'.$_SERVER['HTTP_HOST'].$_SERVER['DOCUMENT_URI']."?act=view&name=".$prm['machine']['name']),
 		),
 		$url_tmp);
 }

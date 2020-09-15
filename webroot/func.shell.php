@@ -265,7 +265,7 @@ function installdir($dir, $mode = NULL)
 function wait_file($file, $msec)
 {
 	$t0 = microtime(true);
-	while(!@filesize($file))
+	while(!@filesize_long($file))
 	{
 		if(microtime(true) > $t0 + $msec / 1000)
 		{

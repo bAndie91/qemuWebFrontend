@@ -46,7 +46,13 @@ function qemu_rename($ini, $oldname, $newname)
 		return false;
 	}
 	
-	if(qemu_load($ini, $newname))
+	try {
+		$newvm = qemu_load($ini, $newname);
+	}
+	catch (Exception $E) {
+		$newvm = false;
+	}
+	if($newvm)
 	{
 		add_error("new VM already exists");
 		return false;
@@ -102,7 +108,7 @@ function qemu_load($ini, $vmname = NULL, $load = array())
 			return $vmlist[$vmname];
 		else
 			//stderr(print_r(debug_backtrace(), true));
-			throw new Exception();
+			throw new Exception("No such vm \"$vmname\"");
 		return NULL;
 	}
 	return $vmlist;

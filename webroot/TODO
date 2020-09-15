@@ -3,9 +3,10 @@
 	- view
 		- save buffer_timeout to cookie
 	- if config was changed: suggest "power cycle" instead of "reset"
+	- resume progress
 
 - VM editor
-	- LOCKING
+	- LOCKING !!
 	- copy VM
 		- copy image files too
 	- new VM
@@ -19,6 +20,8 @@
 	- send click event only to absolute pointer device (eg. tablet)
 	
 - disk creator
+	new
+		touch && chattr +C
 	create snapshot
 		qemu-img snapshot -c telepitve hda.qcow2
 	view snapshots
@@ -58,3 +61,4 @@
 
 - Save State:
 	- not save the disk (eg. VMDK)
+	- restore: progressbar

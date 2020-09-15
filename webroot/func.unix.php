@@ -59,7 +59,7 @@ function du($dir)
 	{
 		if($ent == '.' or $ent == '..') continue;
 		if(is_dir("$dir/$ent")) $return += du("$dir/$ent");
-		else $return += filesize("$dir/$ent");
+		else $return += filesize_long("$dir/$ent");
 	}
 	closedir($dh);
 	return $return;
@@ -98,4 +98,9 @@ function mksockfile($path, $type = NULL, $mode = NULL)
 
 	socket_close($sock);
 	return true;
+}
+
+function filesize_long($path)
+{
+	return filesize($path);
 }
